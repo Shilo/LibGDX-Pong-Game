@@ -50,7 +50,7 @@ public class PongGame extends ApplicationAdapter {
 	float[] _paddlePadding = {0, 0, 0, 0};
 	float[] _paddleMaxForce = {10000, 10000, 10000, 10000};
 	float _ballRadius = 10.0f;
-	float _ballVelocity = 200.0f;
+	float _ballVelocity = 200000.0f;
 	Vector2 _paddlePosition;
 	Boolean _gamePlaying;
 	
@@ -90,7 +90,7 @@ public class PongGame extends ApplicationAdapter {
         _groundBody.createFixture(fixtureDef);
 		
         _paddlePosition = new Vector2(_camera.viewportWidth/2, _camera.viewportHeight/2);
-		//_paddlePosition = new Vector2(0, 0);
+		_paddlePosition = new Vector2(0, 0);
 		
 		createPaddles();
 		createBall();
@@ -172,7 +172,7 @@ public class PongGame extends ApplicationAdapter {
 		FixtureDef fixtureDef = new FixtureDef();
         fixtureDef.shape = shape;
         fixtureDef.density = 1.0f;
-        fixtureDef.friction = 0.0f;
+       // fixtureDef.friction = 0.0f;
         fixtureDef.restitution = 1.0f;
 
         _ballFixtures[0] = ballBody.createFixture(fixtureDef);
@@ -180,6 +180,7 @@ public class PongGame extends ApplicationAdapter {
         
         Vector2 impulse = new Vector2(1000000, 1000000);
         ballBody.applyLinearImpulse(impulse, bodyDef.position, true);
+        ballBody.applyAngularImpulse(_ballVelocity, true);
 	}
 	
 	private void startGame() {
@@ -213,9 +214,9 @@ public class PongGame extends ApplicationAdapter {
 	private void renderBall() {
 		Body body = _ballBodies[0];
 		Fixture fixture = _ballFixtures[0];
+		
 		Vector2 position = body.getPosition();
 		float angle = body.getAngle() * MathUtils.radiansToDegrees;
-		
 		if (SHAPE_RENDERER_DRAW) {
 			_shapeRenderer.begin(ShapeType.Filled);
 			_shapeRenderer.setColor(0, 0, 1, 1);
@@ -223,6 +224,7 @@ public class PongGame extends ApplicationAdapter {
 			_shapeRenderer.end();
 		}
 	}
+		
 	
 	private void renderPaddles() {
 		for (int i=0; i<NUM_OF_PADDLES; i++) {
