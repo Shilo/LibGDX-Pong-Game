@@ -1,0 +1,45 @@
+JvmtiExport can_access_local_variables 0
+JvmtiExport can_hotswap_or_post_breakpoint 0
+JvmtiExport can_post_on_exceptions 0
+# 173 ciObject found
+ciMethod java/lang/System arraycopy (Ljava/lang/Object;ILjava/lang/Object;II)V 6145 1 768 0 -1
+ciMethod sun/misc/Unsafe putByte (JB)V 3073 1 384 0 -1
+ciMethod sun/misc/Unsafe getInt (J)I 2049 1 256 0 -1
+ciMethod sun/misc/Unsafe putInt (JI)V 2049 1 256 0 -1
+ciMethod java/nio/Buffer capacity ()I 1049 1 131 0 0
+ciMethod java/nio/Buffer position ()I 1025 1 128 0 0
+ciMethod java/nio/Buffer position (I)Ljava/nio/Buffer; 2073 1 5402 0 96
+ciMethod java/nio/Buffer limit ()I 1033 1 129 0 -1
+ciMethod java/nio/Buffer limit (I)Ljava/nio/Buffer; 2065 1 5394 0 96
+ciMethod java/nio/Buffer flip ()Ljava/nio/Buffer; 2057 1 17536 0 64
+ciMethod java/nio/Buffer remaining ()I 2385 1 55356 0 0
+ciMethod java/nio/Buffer checkIndex (I)I 2145 1 3888 0 0
+ciMethod java/nio/Buffer discardMark ()V 2065 1 5378 0 0
+ciMethod java/lang/Math max (II)I 513 1 5875 0 -1
+ciMethod java/lang/Math min (II)I 4097 1 19669 0 -1
+ciMethod java/nio/ByteBuffer put (IB)Ljava/nio/ByteBuffer; 0 0 1 0 -1
+ciMethod java/nio/ByteBuffer put (Ljava/nio/ByteBuffer;)Ljava/nio/ByteBuffer; 0 0 1 0 -1
+ciMethod java/nio/ByteBuffer compact ()Ljava/nio/ByteBuffer; 0 0 1 0 -1
+ciMethod java/nio/HeapByteBuffer ix (I)I 2209 1 22804 0 0
+ciMethod java/nio/HeapByteBuffer compact ()Ljava/nio/ByteBuffer; 2065 1 5378 0 320
+ciMethod java/nio/DirectByteBuffer ix (I)J 4097 1 15979 0 0
+ciMethod java/nio/DirectByteBuffer put (IB)Ljava/nio/ByteBuffer; 4097 1 5634 0 96
+ciMethodData java/nio/Buffer checkIndex (I)I 2 3888 orig 144 152 11 31 103 0 0 0 0 8 241 15 23 0 0 0 0 0 1 0 0 32 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 12 1 0 0 33 113 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 8 0 3 0 1 0 80 0 0 0 255 255 255 255 0 0 0 0 7 0 1 0 0 0 0 0 data 10 0x10007 0x0 0x40 0xe24 0x90007 0xe24 0x30 0x0 0x100002 0x0 oops 0
+ciMethod java/nio/IntBuffer get (I)I 0 0 1 0 -1
+ciMethod java/nio/IntBuffer put (II)Ljava/nio/IntBuffer; 0 0 1 0 -1
+ciMethodData java/nio/DirectByteBuffer put (IB)Ljava/nio/ByteBuffer; 2 5634 orig 144 152 11 31 103 0 0 0 0 176 203 39 23 0 0 0 0 40 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 17 160 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 3 0 4 0 1 0 112 0 0 0 255 255 255 255 0 0 0 0 5 0 6 0 0 0 0 0 data 14 0x60005 0x7ba 0x19b8ade0 0xc48 0x0 0x0 0x90002 0x1402 0xd0005 0x7ba 0x0 0x0 0x0 0x0 oops 1 2 java/nio/DirectByteBuffer
+ciMethodData java/nio/DirectByteBuffer ix (I)J 2 15979 orig 144 152 11 31 103 0 0 0 0 24 200 39 23 0 0 0 0 176 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 89 227 1 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 3 0 3 0 0 0 0 0 0 0 255 255 255 255 0 0 0 0 0 0 0 0 0 0 0 0 data 0 oops 0
+ciMethod java/nio/DirectIntBufferU ix (I)J 2049 1 10789 0 0
+ciMethod java/nio/DirectIntBufferU get (I)I 2057 1 5379 0 96
+ciMethod java/nio/DirectIntBufferU put (II)Ljava/nio/IntBuffer; 2057 1 5381 0 96
+ciMethod java/awt/Component getWidth ()I 0 0 1 0 -1
+ciMethod java/awt/Component getHeight ()I 0 0 1 0 -1
+ciMethodData java/nio/Buffer remaining ()I 2 55356 orig 144 152 11 31 103 0 0 0 0 72 234 15 23 0 0 0 0 168 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 42 1 0 0 145 184 6 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 3 0 3 0 0 0 0 0 0 0 255 255 255 255 0 0 0 0 0 0 0 0 0 0 0 0 data 0 oops 0
+ciMethodData java/nio/Buffer position (I)Ljava/nio/Buffer; 2 5402 orig 144 152 11 31 103 0 0 0 0 16 229 15 23 0 0 0 0 32 1 0 0 64 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 1 0 0 185 160 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 11 0 4 0 1 0 112 0 0 0 255 255 255 255 0 0 0 0 7 0 5 0 0 0 0 0 data 14 0x50007 0x0 0x40 0x1417 0x90007 0x1417 0x30 0x0 0x100002 0x0 0x210007 0x1417 0x20 0x0 oops 0
+ciMethodData java/nio/Buffer limit (I)Ljava/nio/Buffer; 2 5394 orig 144 152 11 31 103 0 0 0 0 120 230 15 23 0 0 0 0 64 1 0 0 80 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 1 0 0 129 160 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 14 0 4 0 1 0 144 0 0 0 255 255 255 255 0 0 0 0 7 0 5 0 0 0 0 0 data 18 0x50007 0x0 0x40 0x1410 0x90007 0x1410 0x30 0x0 0x100002 0x0 0x210007 0x1410 0x20 0x0 0x340007 0x1410 0x20 0x0 oops 0
+ciMethodData java/nio/Buffer flip ()Ljava/nio/Buffer; 2 17536 orig 144 152 11 31 103 0 0 0 0 16 233 15 23 0 0 0 0 168 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 249 27 2 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 3 0 4 0 0 0 0 0 0 0 255 255 255 255 0 0 0 0 0 0 0 0 0 0 0 0 data 0 oops 0
+ciMethodData java/nio/DirectIntBufferU ix (I)J 2 10789 orig 144 152 11 31 103 0 0 0 0 16 55 60 23 0 0 0 0 176 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 41 73 1 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 3 0 3 0 0 0 0 0 0 0 255 255 255 255 0 0 0 0 0 0 0 0 0 0 0 0 data 0 oops 0
+ciMethodData java/nio/HeapByteBuffer ix (I)I 2 22804 orig 144 152 11 31 103 0 0 0 0 144 40 27 23 0 0 0 0 176 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 20 1 0 0 1 192 2 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 3 0 3 0 0 0 0 0 0 0 255 255 255 255 0 0 0 0 0 0 0 0 0 0 0 0 data 0 oops 0
+ciMethodData java/nio/DirectIntBufferU get (I)I 2 5379 orig 144 152 11 31 103 0 0 0 0 80 56 60 23 0 0 0 0 32 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 17 160 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 3 0 4 0 1 0 112 0 0 0 255 255 255 255 0 0 0 0 5 0 6 0 0 0 0 0 data 14 0x60005 0x0 0x19d869f0 0x1402 0x0 0x0 0x90002 0x1402 0xc0005 0x0 0x0 0x0 0x0 0x0 oops 1 2 java/nio/DirectIntBufferU
+ciMethodData java/nio/DirectIntBufferU put (II)Ljava/nio/IntBuffer; 2 5381 orig 144 152 11 31 103 0 0 0 0 200 58 60 23 0 0 0 0 40 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 33 160 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 3 0 4 0 1 0 112 0 0 0 255 255 255 255 0 0 0 0 5 0 6 0 0 0 0 0 data 14 0x60005 0x0 0x19d869f0 0x1404 0x0 0x0 0x90002 0x1404 0xd0005 0x0 0x0 0x0 0x0 0x0 oops 1 2 java/nio/DirectIntBufferU
+ciMethodData java/nio/HeapByteBuffer compact ()Ljava/nio/ByteBuffer; 2 5378 orig 144 152 11 31 103 0 0 0 0 216 47 27 23 0 0 0 0 104 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 1 0 0 1 160 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 3 0 4 0 1 0 192 1 0 0 255 255 255 255 0 0 0 0 5 0 6 0 0 0 0 0 data 56 0x60005 0x0 0x1b3e3d70 0x1400 0x0 0x0 0x90005 0x0 0x1b3e3d70 0x1400 0x0 0x0 0x120005 0x0 0x1b3e3d70 0x1400 0x0 0x0 0x160005 0x0 0x1b3e3d70 0x1400 0x0 0x0 0x190002 0x1400 0x1e0005 0x0 0x1b3e3d70 0x1400 0x0 0x0 0x210005 0x0 0x1b3e3d70 0x1400 0x0 0x0 0x270005 0x0 0x1b3e3d70 0x1400 0x0 0x0 0x2a0005 0x0 0x1b3e3d70 0x1400 0x0 0x0 0x2f0005 0x0 0x1b3e3d70 0x1400 0x0 0x0 oops 9 2 java/nio/HeapByteBuffer 8 java/nio/HeapByteBuffer 14 java/nio/HeapByteBuffer 20 java/nio/HeapByteBuffer 28 java/nio/HeapByteBuffer

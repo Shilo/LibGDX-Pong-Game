@@ -3,6 +3,8 @@ package com.shilocity.pong;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Graphics;
+import com.badlogic.gdx.InputAdapter;
+import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -26,7 +28,7 @@ import com.badlogic.gdx.physics.box2d.joints.MouseJointDef;
 import com.badlogic.gdx.physics.box2d.joints.PrismaticJointDef;
 
 public class PongGame extends ApplicationAdapter {
-	final Boolean BOX2D_DEBUG_DRAW = false;
+	final Boolean BOX2D_DEBUG_DRAW = true;
 	final Boolean SHAPE_RENDERER_DRAW = true;
 	final int NUM_OF_PADDLES = 4;
 	final int MAX_NUM_OF_BALLS = 1;
@@ -87,11 +89,19 @@ public class PongGame extends ApplicationAdapter {
         groundShape.set(_camera.viewportWidth, 0, _camera.viewportWidth, _camera.viewportHeight);
         _groundBody.createFixture(fixtureDef);
 		
-		//_paddlePosition = new Vector2(_camera.viewportWidth/2, _camera.viewportHeight/2);
-		_paddlePosition = new Vector2(0, 0);
+        _paddlePosition = new Vector2(_camera.viewportWidth/2, _camera.viewportHeight/2);
+		//_paddlePosition = new Vector2(0, 0);
 		
 		createPaddles();
 		createBall();
+		
+		Gdx.input.setInputProcessor(new InputAdapter () {
+			@Override
+			public boolean mouseMoved (int x, int y) {
+				updatePaddlePosition();
+			    return true;
+			}
+		});
 		
 		startGame();
 	}
@@ -114,10 +124,10 @@ public class PongGame extends ApplicationAdapter {
 			
 	        BodyDef bodyDef = new BodyDef();
 	        bodyDef.type = BodyDef.BodyType.DynamicBody;
-	        bodyDef.position.set(x+width/2, y+height/2);
+	        
 	        
 	        Body paddleBody = _paddleBodies[i] = _world.createBody(bodyDef);
-
+	        
 	        PolygonShape shape = new PolygonShape();
 			shape.setAsBox(width/2, height/2);
 			
@@ -134,12 +144,13 @@ public class PongGame extends ApplicationAdapter {
 	        mouseJointDef.bodyB = paddleBody;
 	        mouseJointDef.collideConnected = true;
 	        mouseJointDef.maxForce = _paddleMaxForce[i] * paddleBody.getMass();
-	        
 	        _paddleMouseJoints[i] = (MouseJoint)_world.createJoint(mouseJointDef);
+	        
+	        paddleBody.setTransform(x+width/2, y+height/2, 0.0f);
 	        
 	        Vector2 worldAxis = new Vector2(indexIsEven?1.0f:0.0f, indexIsEven?0.0f:1.0f);
 	        PrismaticJointDef prismaticJointDef = new PrismaticJointDef();
-	        mouseJointDef.collideConnected = true;
+	        prismaticJointDef.collideConnected = false;
 	        prismaticJointDef.initialize(paddleBody, _groundBody, paddleBody.getWorldCenter(), worldAxis);
 	        _world.createJoint(prismaticJointDef);
 		}
@@ -176,17 +187,13 @@ public class PongGame extends ApplicationAdapter {
 	}
  
 	@Override
-	public void render () {
+	public void render() {
 		_world.step(Gdx.graphics.getDeltaTime(), 6, 2);
 
 		Gdx.gl.glClearColor(0, 0, 0, 1);
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 		
 		_shapeRenderer.setProjectionMatrix(_camera.combined);
-		
-		if (_gamePlaying) {
-			getInput();
-		}
 		
 		renderPaddles();
 		renderBall();
@@ -198,10 +205,9 @@ public class PongGame extends ApplicationAdapter {
 		}
 	}
 	
-	private void getInput() {
+	private void updatePaddlePosition() {
 		Vector2 worldPosition = cursorToWorldPosition(Gdx.input.getX(), Gdx.input.getY());
 		_paddlePosition = new Vector2(worldPosition.x, worldPosition.y);
-		
 	}
 	
 	private void renderBall() {
