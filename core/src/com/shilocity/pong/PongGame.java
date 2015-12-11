@@ -93,7 +93,7 @@ public class PongGame extends ApplicationAdapter {
         _groundBody.createFixture(fixtureDef);
 		
         _paddlePosition = new Vector2(_camera.viewportWidth/2, _camera.viewportHeight/2);
-		//_paddlePosition = new Vector2(0, 0);
+		_paddlePosition = new Vector2(0, 0);
 		
 		createPaddles();
 		createBall();
@@ -175,7 +175,7 @@ public class PongGame extends ApplicationAdapter {
 		FixtureDef fixtureDef = new FixtureDef();
         fixtureDef.shape = shape;
         fixtureDef.density = 1.0f;
-        fixtureDef.friction = 0.0f;
+       // fixtureDef.friction = 0.0f;
         fixtureDef.restitution = 1.0f;
 
         _ballFixtures[0] = ballBody.createFixture(fixtureDef);
@@ -183,6 +183,7 @@ public class PongGame extends ApplicationAdapter {
         
         Vector2 impulse = new Vector2(_ballVelocity, _ballVelocity);
         ballBody.applyLinearImpulse(impulse, bodyDef.position, true);
+        ballBody.applyAngularImpulse(_ballVelocity, true);
 	}
 	
 	private void startGame() {
@@ -225,6 +226,7 @@ public class PongGame extends ApplicationAdapter {
 			_shapeRenderer.end();
 		}
 	}
+		
 	
 	private void renderPaddles() {
 		for (int i=0; i<NUM_OF_PADDLES; i++) {
