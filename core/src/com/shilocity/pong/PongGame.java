@@ -50,6 +50,7 @@ public class PongGame extends ApplicationAdapter {
 	float[] _paddleWidth = {10, 10, 10, 10};
 	float[] _paddlePadding = {0, 0, 0, 0};
 	float[] _paddleMaxForce = {1000, 1000, 1000, 1000};
+	float[] _paddleElasticity = {0.0f, 1.0f, 10.0f, 100.0f};
 	float _ballRadius = 1.0f;
 	float _ballVelocity = 200.0f;
 	Vector2 _paddlePosition;
@@ -62,10 +63,10 @@ public class PongGame extends ApplicationAdapter {
 		_spriteBatch = new SpriteBatch();
 		_debugRenderer = new Box2DDebugRenderer();
 		
-		float width = Gdx.graphics.getWidth() * _scaleFactor;
-		float height = Gdx.graphics.getHeight() * _scaleFactor;
-		_camera = new OrthographicCamera(width, height);
-		_camera.setToOrtho(true, width, height);
+		float screenWidth = Gdx.graphics.getWidth() * _scaleFactor;
+		float screenHeight = Gdx.graphics.getHeight() * _scaleFactor;
+		_camera = new OrthographicCamera(screenWidth, screenHeight);
+		_camera.setToOrtho(true, screenWidth, screenHeight);
 		
 		_world = new World(new Vector2(0, 0), true);
 		
@@ -229,14 +230,20 @@ public class PongGame extends ApplicationAdapter {
 	
 	private void renderPaddles() {
 		for (int i=0; i<NUM_OF_PADDLES; i++) {
-			_paddleMouseJoints[i].setTarget(_paddlePosition);
-			
-			
 			Body body = _paddleBodies[i];
 			Fixture fixture = _paddleFixtures[i];
 			Vector2 size = sizeOfPolygonShape((PolygonShape)fixture.getShape());
 			Vector2 position = body.getPosition();
 			float angle = body.getAngle() * MathUtils.radiansToDegrees;
+			
+			Vector2 paddlePosition = _paddlePosition.cpy();
+			float paddleElasticity = (_paddleElasticity[i] * (i == 0 || i == 1 ? 1.0f : -1.0f));
+			if (i == 0 || i == 2) {
+				paddlePosition.y = position.y + paddleElasticity;
+			} else {
+				paddlePosition.x = position.x + paddleElasticity;
+			}
+			_paddleMouseJoints[i].setTarget(paddlePosition);
 			
 			if (SHAPE_RENDERER_DRAW) {
 				_shapeRenderer.begin(ShapeType.Filled);
