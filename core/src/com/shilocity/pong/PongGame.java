@@ -50,7 +50,7 @@ public class PongGame extends ApplicationAdapter {
 	float[] _paddleWidth = {10, 10, 10, 10};
 	float[] _paddlePadding = {0, 0, 0, 0};
 	float[] _paddleMaxForce = {1000, 1000, 1000, 1000};
-	float[] _paddleElasticity = {0.0f, 1.0f, 10.0f, 100.0f};
+	float[] _paddleElasticity = {5.0f, 5.0f, 5.0f, 5.0f};
 	float _ballRadius = 1.0f;
 	float _ballVelocity = 200.0f;
 	Vector2 _paddlePosition;
