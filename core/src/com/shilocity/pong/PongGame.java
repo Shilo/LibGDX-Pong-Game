@@ -31,7 +31,7 @@ public class PongGame extends ApplicationAdapter {
 	final Boolean BOX2D_DEBUG_DRAW = true;
 	final Boolean SHAPE_RENDERER_DRAW = true;
 	final int NUM_OF_PADDLES = 4;
-	final int MAX_NUM_OF_BALLS = 1;
+	final int MAX_NUM_OF_BALLS = 100;
 	
 	OrthographicCamera _camera;
 	ShapeRenderer _shapeRenderer;
@@ -41,6 +41,7 @@ public class PongGame extends ApplicationAdapter {
 	Body _groundBody;
 	
 	float _scaleFactor = 0.1f;
+	int _numOfBalls = 0;
 	Body[] _ballBodies = new Body[MAX_NUM_OF_BALLS];
 	Fixture[] _ballFixtures = new Fixture[MAX_NUM_OF_BALLS];
     Body[] _paddleBodies = new Body[NUM_OF_PADDLES];
@@ -52,7 +53,7 @@ public class PongGame extends ApplicationAdapter {
 	float[] _paddleMaxForce = {1000, 1000, 1000, 1000};
 	float[] _paddleElasticity = {5.0f, 5.0f, 5.0f, 5.0f};
 	float _ballRadius = 1.0f;
-	float _ballVelocity = 200.0f;
+	float _ballVelocity = 100.0f;
 	Vector2 _paddlePosition;
 	Boolean _gamePlaying;
 	
@@ -97,7 +98,7 @@ public class PongGame extends ApplicationAdapter {
 		_paddlePosition = new Vector2(0, 0);
 		
 		createPaddles();
-		createBall();
+		//createBall();
 		
 		Gdx.input.setInputProcessor(new InputAdapter () {
 			@Override
@@ -109,6 +110,12 @@ public class PongGame extends ApplicationAdapter {
 			@Override
 			public boolean touchDragged (int screenX, int screenY, int pointer) {
 				updatePaddlePosition();
+				return true;
+			}
+			
+			@Override
+			public boolean touchDown (int screenX, int screenY, int pointer, int button) {
+				createBall();
 				return true;
 			}
 		});
@@ -167,14 +174,19 @@ public class PongGame extends ApplicationAdapter {
 	}
 	
 	private void createBall() {
+		if (_numOfBalls == MAX_NUM_OF_BALLS) return;
+		
 		float viewportWidth = _camera.viewportWidth;
 		float viewportHeight = _camera.viewportHeight;
+		
+		float ballAngle = (float) (Math.random()*2*Math.PI);
 		
 		BodyDef bodyDef = new BodyDef();
         bodyDef.type = BodyDef.BodyType.DynamicBody;
         bodyDef.position.set(viewportWidth/2, viewportHeight/2);
+        bodyDef.angle = ballAngle;
         
-        Body ballBody = _ballBodies[0] = _world.createBody(bodyDef);
+        Body ballBody = _ballBodies[_numOfBalls] = _world.createBody(bodyDef);
 
         CircleShape shape = new CircleShape();
 		shape.setRadius(_ballRadius);
@@ -188,9 +200,13 @@ public class PongGame extends ApplicationAdapter {
         _ballFixtures[0] = ballBody.createFixture(fixtureDef);
         shape.dispose();
         
-        Vector2 impulse = new Vector2(_ballVelocity, _ballVelocity);
+        float velocityX = (float) (_ballVelocity*Math.cos(ballAngle));
+        float velocityY = (float) (_ballVelocity*Math.sin(ballAngle));
+        
+        Vector2 impulse = new Vector2(velocityX, velocityY);
         ballBody.applyLinearImpulse(impulse, bodyDef.position, true);
-        ballBody.applyAngularImpulse(_ballVelocity, true);
+        
+        _numOfBalls++;
 	}
 	
 	private void startGame() {
@@ -207,7 +223,7 @@ public class PongGame extends ApplicationAdapter {
 		_shapeRenderer.setProjectionMatrix(_camera.combined);
 		
 		renderPaddles();
-		renderBall();
+		renderBalls();
 		
 		if (BOX2D_DEBUG_DRAW) {
 			_spriteBatch.begin();
@@ -221,15 +237,19 @@ public class PongGame extends ApplicationAdapter {
 		_paddlePosition = new Vector2(worldPosition.x, worldPosition.y);
 	}
 	
-	private void renderBall() {
-		Body body = _ballBodies[0];
-		Vector2 position = body.getPosition();
-		
-		if (SHAPE_RENDERER_DRAW) {
-			_shapeRenderer.begin(ShapeType.Filled);
-			_shapeRenderer.setColor(0, 0, 1, 1);
-			_shapeRenderer.circle(position.x, position.y, _ballRadius);
-			_shapeRenderer.end();
+	private void renderBalls() {
+		for (int i=0; i<_ballBodies.length; i++) {
+			Body body = _ballBodies[i];
+			if (body == null) continue;
+			
+			Vector2 position = body.getPosition();
+			
+			if (SHAPE_RENDERER_DRAW) {
+				_shapeRenderer.begin(ShapeType.Filled);
+				_shapeRenderer.setColor(0, 0, 1, 1);
+				_shapeRenderer.circle(position.x, position.y, _ballRadius);
+				_shapeRenderer.end();
+			}
 		}
 	}
 		
