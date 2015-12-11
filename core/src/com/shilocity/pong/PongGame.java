@@ -105,6 +105,12 @@ public class PongGame extends ApplicationAdapter {
 				updatePaddlePosition();
 			    return true;
 			}
+			
+			@Override
+			public boolean touchDragged (int screenX, int screenY, int pointer) {
+				updatePaddlePosition();
+				return true;
+			}
 		});
 		
 		startGame();
@@ -176,7 +182,7 @@ public class PongGame extends ApplicationAdapter {
 		FixtureDef fixtureDef = new FixtureDef();
         fixtureDef.shape = shape;
         fixtureDef.density = 1.0f;
-       // fixtureDef.friction = 0.0f;
+        fixtureDef.friction = 0.0f;
         fixtureDef.restitution = 1.0f;
 
         _ballFixtures[0] = ballBody.createFixture(fixtureDef);
