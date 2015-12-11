@@ -207,7 +207,6 @@ public class PongGame extends ApplicationAdapter {
 			_debugRenderer.render(_world, _camera.combined);
 			_spriteBatch.end();
 		}
-		log(_ballBodies[0].getLinearVelocity());
 	}
 	
 	private void updatePaddlePosition() {
