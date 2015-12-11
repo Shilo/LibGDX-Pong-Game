@@ -40,16 +40,17 @@ public class PongGame extends ApplicationAdapter {
 	World _world;
 	Body _groundBody;
 	
+	float _scaleFactor = 0.1f;
 	Body[] _ballBodies = new Body[MAX_NUM_OF_BALLS];
 	Fixture[] _ballFixtures = new Fixture[MAX_NUM_OF_BALLS];
     Body[] _paddleBodies = new Body[NUM_OF_PADDLES];
     Fixture[] _paddleFixtures = new Fixture[NUM_OF_PADDLES];
     MouseJoint[] _paddleMouseJoints = new MouseJoint[NUM_OF_PADDLES];
-	float[] _paddleThickness = {20, 20, 20, 20};
-	float[] _paddleWidth = {100, 100, 100, 100};
+	float[] _paddleThickness = {2, 2, 2, 2};
+	float[] _paddleWidth = {10, 10, 10, 10};
 	float[] _paddlePadding = {0, 0, 0, 0};
-	float[] _paddleMaxForce = {10000, 10000, 10000, 10000};
-	float _ballRadius = 10.0f;
+	float[] _paddleMaxForce = {1000, 1000, 1000, 1000};
+	float _ballRadius = 1.0f;
 	float _ballVelocity = 200.0f;
 	Vector2 _paddlePosition;
 	Boolean _gamePlaying;
@@ -61,8 +62,10 @@ public class PongGame extends ApplicationAdapter {
 		_spriteBatch = new SpriteBatch();
 		_debugRenderer = new Box2DDebugRenderer();
 		
-		_camera = new OrthographicCamera(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-		_camera.setToOrtho(true, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+		float width = Gdx.graphics.getWidth() * _scaleFactor;
+		float height = Gdx.graphics.getHeight() * _scaleFactor;
+		_camera = new OrthographicCamera(width, height);
+		_camera.setToOrtho(true, width, height);
 		
 		_world = new World(new Vector2(0, 0), true);
 		
@@ -178,7 +181,7 @@ public class PongGame extends ApplicationAdapter {
         _ballFixtures[0] = ballBody.createFixture(fixtureDef);
         shape.dispose();
         
-        Vector2 impulse = new Vector2(1000000, 1000000);
+        Vector2 impulse = new Vector2(_ballVelocity, _ballVelocity);
         ballBody.applyLinearImpulse(impulse, bodyDef.position, true);
 	}
 	
@@ -203,6 +206,7 @@ public class PongGame extends ApplicationAdapter {
 			_debugRenderer.render(_world, _camera.combined);
 			_spriteBatch.end();
 		}
+		log(_ballBodies[0].getLinearVelocity());
 	}
 	
 	private void updatePaddlePosition() {
@@ -212,9 +216,7 @@ public class PongGame extends ApplicationAdapter {
 	
 	private void renderBall() {
 		Body body = _ballBodies[0];
-		Fixture fixture = _ballFixtures[0];
 		Vector2 position = body.getPosition();
-		float angle = body.getAngle() * MathUtils.radiansToDegrees;
 		
 		if (SHAPE_RENDERER_DRAW) {
 			_shapeRenderer.begin(ShapeType.Filled);
