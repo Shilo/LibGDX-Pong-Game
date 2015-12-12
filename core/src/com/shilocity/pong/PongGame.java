@@ -34,13 +34,14 @@ import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Label.LabelStyle;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.Timer;
 
 public class PongGame extends ApplicationAdapter {
 	final int NUM_OF_PADDLES = 4;
 	final int MAX_NUM_OF_BALLS = 9999;
 	final boolean CREATE_BALL_ON_POINTER = true;
 	final boolean INFINITE_SPAWN_ON_LEFT_CLICK = true;
-	final int INFINITE_SPAWN_DELAY = 300;
+	final float INFINITE_SPAWN_DELAY = 0.3f;
 	final Vector2 DISPLAY_RESOLUTION = new Vector2(1280, 768);
 	final boolean START_FULLSCREEN = false;
 	final int FULLSCREEN_KEY_CODE = 34;
@@ -93,7 +94,7 @@ public class PongGame extends ApplicationAdapter {
 	Array<Body> _deadBalls = new Array<Body>();
 	boolean _godMode = false;
 	boolean _infiniteSpawn = false;
-	java.util.Timer _infiniteSpawnDelayTimer;
+	Timer _infiniteSpawnDelayTimer;
 	int _frameCount = 0;
 	double _totalTime = 0;
 	
@@ -265,11 +266,12 @@ public class PongGame extends ApplicationAdapter {
 					createBall();
 					if (INFINITE_SPAWN_ON_LEFT_CLICK) {
 						if (_infiniteSpawnDelayTimer != null) {
-							_infiniteSpawnDelayTimer.cancel();
+							_infiniteSpawnDelayTimer.stop();
+							_infiniteSpawnDelayTimer.clear();
 						}
-						_infiniteSpawnDelayTimer = new java.util.Timer();
-						_infiniteSpawnDelayTimer.schedule( 
-						        new java.util.TimerTask() {
+						_infiniteSpawnDelayTimer = new Timer();
+						_infiniteSpawnDelayTimer.scheduleTask( 
+						        new Timer.Task() {
 						            @Override
 						            public void run() {
 						            	_infiniteSpawn = true;
@@ -285,7 +287,8 @@ public class PongGame extends ApplicationAdapter {
 			public boolean touchUp (int screenX, int screenY, int pointer, int button) {
 				if (INFINITE_SPAWN_ON_LEFT_CLICK) {
 					if (_infiniteSpawnDelayTimer != null) {
-						_infiniteSpawnDelayTimer.cancel();
+						_infiniteSpawnDelayTimer.stop();
+						_infiniteSpawnDelayTimer.clear();
 						_infiniteSpawnDelayTimer = null;
 					}
 					_infiniteSpawn = false;
@@ -320,7 +323,7 @@ public class PongGame extends ApplicationAdapter {
 		float padding = 50;
 
 		Label fpsCounterTextLabel = new Label("FPS", labelStyle);
-		_fpsCounterLabel = new Label("", labelStyle);
+		_fpsCounterLabel = new Label("...", labelStyle);
 		
 		_godModeLabel = new Label("[GOD MODE]", labelStyle);
 		_godModeLabel.setVisible(_godMode);
@@ -376,7 +379,7 @@ public class PongGame extends ApplicationAdapter {
 	}
 	
 	private void updateFPSCounterLabel(double fps) {
-		_fpsCounterLabel.setText(String.format("%.0f", fps));
+		_fpsCounterLabel.setText(""+Math.round(fps));
 	}
 	
 	private void updateBallCounterLabel() {
