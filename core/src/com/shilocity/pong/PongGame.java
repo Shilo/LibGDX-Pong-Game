@@ -2,104 +2,232 @@ package com.shilocity.pong;
 
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.Graphics;
+import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
-import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType;
 import com.badlogic.gdx.math.MathUtils;
-import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.BodyDef;
 import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
 import com.badlogic.gdx.physics.box2d.CircleShape;
+import com.badlogic.gdx.physics.box2d.Contact;
+import com.badlogic.gdx.physics.box2d.ContactImpulse;
+import com.badlogic.gdx.physics.box2d.ContactListener;
 import com.badlogic.gdx.physics.box2d.EdgeShape;
 import com.badlogic.gdx.physics.box2d.Fixture;
 import com.badlogic.gdx.physics.box2d.FixtureDef;
+import com.badlogic.gdx.physics.box2d.Manifold;
 import com.badlogic.gdx.physics.box2d.PolygonShape;
 import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.physics.box2d.joints.MouseJoint;
 import com.badlogic.gdx.physics.box2d.joints.MouseJointDef;
 import com.badlogic.gdx.physics.box2d.joints.PrismaticJointDef;
+import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.Label.LabelStyle;
+import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.utils.Array;
 
 public class PongGame extends ApplicationAdapter {
-	final Boolean BOX2D_DEBUG_DRAW = true;
-	final Boolean SHAPE_RENDERER_DRAW = true;
 	final int NUM_OF_PADDLES = 4;
-	final int MAX_NUM_OF_BALLS = 100;
+	final int MAX_NUM_OF_BALLS = 9999;
+	final boolean CREATE_BALL_ON_POINTER = true;
+	final boolean INFINITE_SPAWN_ON_LEFT_CLICK = true;
+	final int INFINITE_SPAWN_DELAY = 300;
+	final Vector2 DISPLAY_RESOLUTION = new Vector2(1280, 768);
+	final boolean START_FULLSCREEN = false;
+	final int FULLSCREEN_KEY_CODE = 34;
+	
+	private enum DrawStyle {
+		NORMAL,
+		DEBUG,
+		NORMAL_AND_DEBUG
+	}
+	
+	private enum CollisionType {
+		WALL,
+		BALL,
+		PADDLE
+	}
 	
 	OrthographicCamera _camera;
 	ShapeRenderer _shapeRenderer;
 	SpriteBatch _spriteBatch;
 	Box2DDebugRenderer _debugRenderer;
+	private Stage _stage;
+	private Table _tableLeft;
+	private Table _tableCenter;
+	private Table _tableRight;
+	private Table _tableBottomCenter;
 	World _world;
-	Body _groundBody;
+	Body _wallBody;
+	Body _dummyBody;
 	
 	float _scaleFactor = 0.1f;
 	int _numOfBalls = 0;
-	Body[] _ballBodies = new Body[MAX_NUM_OF_BALLS];
-	Fixture[] _ballFixtures = new Fixture[MAX_NUM_OF_BALLS];
+	int _numOfHits = 0;
+	int _numOfBallsLost = 0;
+	Array<Body> _ballBodies = new Array<Body>();
+	Array<Fixture> _ballFixtures = new Array<Fixture>();
     Body[] _paddleBodies = new Body[NUM_OF_PADDLES];
     Fixture[] _paddleFixtures = new Fixture[NUM_OF_PADDLES];
     MouseJoint[] _paddleMouseJoints = new MouseJoint[NUM_OF_PADDLES];
 	float[] _paddleThickness = {2, 2, 2, 2};
 	float[] _paddleWidth = {10, 10, 10, 10};
-	float[] _paddlePadding = {0, 0, 0, 0};
+	float[] _paddlePadding = {5, 5, 5, 5};
 	float[] _paddleMaxForce = {1000, 1000, 1000, 1000};
 	float[] _paddleElasticity = {5.0f, 5.0f, 5.0f, 5.0f};
 	float _ballRadius = 1.0f;
 	float _ballVelocity = 100.0f;
+	float _wallPadding = -_ballRadius*2;
 	Vector2 _paddlePosition;
-	Boolean _gamePlaying;
+	boolean _gamePlaying = false;
+	DrawStyle _drawStyle = DrawStyle.NORMAL;
+	Array<Body> _deadBalls = new Array<Body>();
+	boolean _godMode = false;
+	boolean _infiniteSpawn = false;
+	java.util.Timer _infiniteSpawnDelayTimer;
+	int _frameCount = 0;
+	double _totalTime = 0;
 	
+	Label _fpsCounterLabel;
+	Label _godModeLabel;
+	Label _ballCounterLabel;
+	Label _lostLabel;
+	Label _hitsLabel;
 	
 	@Override
 	public void create() {
+		setupDisplay();
+		
 		_shapeRenderer = new ShapeRenderer();
 		_spriteBatch = new SpriteBatch();
 		_debugRenderer = new Box2DDebugRenderer();
 		
+		createCamera();
+		createWorld();
+        createStage();
+		createWall();
+		createPaddles();
+		createUserInterface();
+		createCollisionDetection();
+		createInputHandling();
+		
+		startGame();
+	}
+	
+	private void setupDisplay() {
+		if (START_FULLSCREEN) {
+			Gdx.graphics.setDisplayMode((int)DISPLAY_RESOLUTION.x, (int)DISPLAY_RESOLUTION.y, START_FULLSCREEN);
+		}
+	}
+	
+	private void toggleFullscreen() {
+		Gdx.graphics.setDisplayMode((int)DISPLAY_RESOLUTION.x, (int)DISPLAY_RESOLUTION.y, !Gdx.graphics.isFullscreen());
+	}
+	
+	public void resize(int width, int height) {
+	    _stage.getViewport().update(width, height, true);
+	}
+	
+	public void dispose() {
+	    _stage.dispose();
+	}
+
+	
+	private void createCamera() {
 		float screenWidth = Gdx.graphics.getWidth() * _scaleFactor;
 		float screenHeight = Gdx.graphics.getHeight() * _scaleFactor;
 		_camera = new OrthographicCamera(screenWidth, screenHeight);
 		_camera.setToOrtho(true, screenWidth, screenHeight);
-		
+		_paddlePosition = new Vector2(_camera.viewportWidth/2, _camera.viewportHeight/2);
+	}
+	
+	private void createWorld() {
 		_world = new World(new Vector2(0, 0), true);
+		_dummyBody = _world.createBody(new BodyDef());
+	}
+	
+	private void createStage() {
+		boolean debugDraw = (_drawStyle == DrawStyle.DEBUG || _drawStyle == DrawStyle.NORMAL_AND_DEBUG);
 		
-		BodyDef groundBodyDef = new BodyDef();
-		groundBodyDef.type = BodyDef.BodyType.KinematicBody;
-		groundBodyDef.position.set(0, 0);
-		
-		_groundBody = _world.createBody(groundBodyDef);
-		
-		EdgeShape groundShape = new EdgeShape();
-		FixtureDef fixtureDef = new FixtureDef();
-        fixtureDef.shape = groundShape;
-        fixtureDef.density = 1f;
-        
-        groundShape.set(0, 0, _camera.viewportWidth, 0);
-        _groundBody.createFixture(fixtureDef);
-        
-        groundShape.set(0, _camera.viewportHeight, _camera.viewportWidth, _camera.viewportHeight);
-        _groundBody.createFixture(fixtureDef);
-        
-        groundShape.set(0, 0, 0, _camera.viewportHeight);
-        _groundBody.createFixture(fixtureDef);
-        
-        groundShape.set(_camera.viewportWidth, 0, _camera.viewportWidth, _camera.viewportHeight);
-        _groundBody.createFixture(fixtureDef);
-		
-        _paddlePosition = new Vector2(_camera.viewportWidth/2, _camera.viewportHeight/2);
-		_paddlePosition = new Vector2(0, 0);
-		
-		createPaddles();
-		//createBall();
-		
+		_stage = new Stage();
+	    Gdx.input.setInputProcessor(_stage);
+
+	    _tableLeft = new Table();
+	    _tableLeft.setFillParent(true);
+	    _tableLeft.setDebug(debugDraw);
+	    _tableLeft.pad(10);
+	    _stage.addActor(_tableLeft);
+	    
+	    _tableCenter = new Table();
+	    _tableCenter.setFillParent(true);
+	    _tableCenter.setDebug(debugDraw);
+	    _tableCenter.pad(10);
+	    _stage.addActor(_tableCenter);
+	    
+	    _tableRight = new Table();
+	    _tableRight.setFillParent(true);
+	    _tableRight.setDebug(debugDraw);
+	    _tableRight.pad(10);
+	    _stage.addActor(_tableRight);
+	    
+	    _tableBottomCenter = new Table();
+	    _tableBottomCenter.setFillParent(true);
+	    _tableBottomCenter.setDebug(debugDraw);
+	    _tableBottomCenter.pad(10);
+	    _stage.addActor(_tableBottomCenter);
+	   
+	}
+	
+	private void createCollisionDetection() {
+		_world.setContactListener(new ContactListener() {
+            @Override
+            public void beginContact(Contact contact) {
+            	Fixture fixtureA = contact.getFixtureA();
+            	Fixture fixtureB = contact.getFixtureB();
+            	
+            	if (fixtureIsCollisionType(fixtureA, CollisionType.BALL)) {
+            		if (fixtureIsCollisionType(fixtureB, CollisionType.WALL)) {
+            			if (!_godMode) {
+            				requestDestroyBall(fixtureA.getBody());
+            			}
+            		} else if (fixtureIsCollisionType(fixtureB, CollisionType.PADDLE)) {
+            			ballHit(fixtureA.getBody());
+            		}
+            	} else if (fixtureIsCollisionType(fixtureB, CollisionType.BALL)) {
+            		if (fixtureIsCollisionType(fixtureA, CollisionType.WALL)) {
+            			if (!_godMode) {
+            				requestDestroyBall(fixtureB.getBody());
+            			}
+            		} else if (fixtureIsCollisionType(fixtureA, CollisionType.PADDLE)) {
+            			ballHit(fixtureB.getBody());
+            		}
+            	}
+            }
+
+            @Override
+            public void endContact(Contact contact) {
+            }
+
+            @Override
+            public void preSolve(Contact contact, Manifold oldManifold) {
+            }
+
+            @Override
+            public void postSolve(Contact contact, ContactImpulse impulse) {
+            }
+        });
+	}
+	
+	private void createInputHandling() {
 		Gdx.input.setInputProcessor(new InputAdapter () {
 			@Override
 			public boolean mouseMoved (int x, int y) {
@@ -115,12 +243,205 @@ public class PongGame extends ApplicationAdapter {
 			
 			@Override
 			public boolean touchDown (int screenX, int screenY, int pointer, int button) {
-				createBall();
+				if (button == 1) {
+					toggleGodMode();
+				} else if (button == 2) {
+					switch (_drawStyle) {
+						case NORMAL:
+							_drawStyle = DrawStyle.DEBUG;
+							break;
+						case DEBUG:
+							_drawStyle = DrawStyle.NORMAL_AND_DEBUG;
+							break;
+						case NORMAL_AND_DEBUG:
+							_drawStyle = DrawStyle.NORMAL;
+					}
+					boolean debugDraw = (_drawStyle == DrawStyle.DEBUG || _drawStyle == DrawStyle.NORMAL_AND_DEBUG);
+					_tableLeft.setDebug(debugDraw);
+					_tableCenter.setDebug(debugDraw);
+					_tableRight.setDebug(debugDraw);
+					_tableBottomCenter.setDebug(debugDraw);
+				} else {
+					createBall();
+					if (INFINITE_SPAWN_ON_LEFT_CLICK) {
+						if (_infiniteSpawnDelayTimer != null) {
+							_infiniteSpawnDelayTimer.cancel();
+						}
+						_infiniteSpawnDelayTimer = new java.util.Timer();
+						_infiniteSpawnDelayTimer.schedule( 
+						        new java.util.TimerTask() {
+						            @Override
+						            public void run() {
+						            	_infiniteSpawn = true;
+						            }
+						        }, 
+						        INFINITE_SPAWN_DELAY 
+						);
+					}
+				}
 				return true;
 			}
+			
+			public boolean touchUp (int screenX, int screenY, int pointer, int button) {
+				if (INFINITE_SPAWN_ON_LEFT_CLICK) {
+					if (_infiniteSpawnDelayTimer != null) {
+						_infiniteSpawnDelayTimer.cancel();
+						_infiniteSpawnDelayTimer = null;
+					}
+					_infiniteSpawn = false;
+					return true;
+				}
+				return false;
+			}
+			
+			@Override
+			public boolean scrolled (int amount) {
+				int count = Math.abs(amount);
+				for (int i=0; i<count; i++) {
+					createBall();
+				}
+				return true;
+			}
+			
+			@Override
+			public boolean keyUp (int keycode) {
+				if (keycode == FULLSCREEN_KEY_CODE) {
+					toggleFullscreen();
+					return true;
+				}
+				return false;
+			}
 		});
+	}
+	
+	private void createUserInterface() {
+		LabelStyle labelStyle = new LabelStyle();
+		labelStyle.font = new BitmapFont();
+		float padding = 50;
+
+		Label fpsCounterTextLabel = new Label("FPS", labelStyle);
+		_fpsCounterLabel = new Label("", labelStyle);
 		
-		startGame();
+		_godModeLabel = new Label("[GOD MODE]", labelStyle);
+		_godModeLabel.setVisible(_godMode);
+		
+		Label ballCounterTextLabel = new Label("Balls", labelStyle);
+		_ballCounterLabel = new Label(""+_numOfBalls, labelStyle);
+		
+		Label lostTextLabel = new Label("Lost", labelStyle);
+		_lostLabel = new Label(""+_numOfBallsLost, labelStyle);
+		
+		Label hitsTextLabel = new Label("Hits", labelStyle);
+		_hitsLabel = new Label(""+_numOfHits, labelStyle);
+		
+		Label fullscreenTextLabel = new Label("Fullscreen", labelStyle);
+		Label fullscreenLabel = new Label(Input.Keys.toString(FULLSCREEN_KEY_CODE), labelStyle);
+		
+		Label godModeTextLabel = new Label("God Mode", labelStyle);
+		Label godModeLabel = new Label("Right Click", labelStyle);
+		
+		Label drawModeTextLabel = new Label("Draw Mode", labelStyle);
+		Label drawModeLabel = new Label("Middle Click", labelStyle);
+		
+		Label spawnBallsTextLabel = new Label("Spawn Balls", labelStyle);
+		Label spawnBallsLabel = new Label("Left Click / Hold, Scroll", labelStyle);
+		
+		_tableLeft.top().left();
+		_tableLeft.add(fpsCounterTextLabel);
+		_tableLeft.row();
+		_tableLeft.add(_fpsCounterLabel);
+		
+		_tableCenter.top();
+		_tableCenter.add(_godModeLabel);
+		
+		_tableRight.top().right();
+		_tableRight.add(ballCounterTextLabel).padRight(padding);
+		_tableRight.add(lostTextLabel).padRight(padding);
+		_tableRight.add(hitsTextLabel);
+		_tableRight.row();
+		_tableRight.add(_ballCounterLabel).padRight(padding);
+		_tableRight.add(_lostLabel).padRight(padding);
+		_tableRight.add(_hitsLabel);
+		
+		_tableBottomCenter.bottom();
+		_tableBottomCenter.add(spawnBallsTextLabel).padRight(padding);
+		_tableBottomCenter.add(godModeTextLabel).padRight(padding);
+		_tableBottomCenter.add(drawModeTextLabel).padRight(padding);
+		_tableBottomCenter.add(fullscreenTextLabel);
+		_tableBottomCenter.row();
+		_tableBottomCenter.add(spawnBallsLabel).padRight(padding);
+		_tableBottomCenter.add(godModeLabel).padRight(padding);
+		_tableBottomCenter.add(drawModeLabel).padRight(padding);
+		_tableBottomCenter.add(fullscreenLabel);
+	}
+	
+	private void updateFPSCounterLabel(double fps) {
+		_fpsCounterLabel.setText(String.format("%.0f", fps));
+	}
+	
+	private void updateBallCounterLabel() {
+		_ballCounterLabel.setText(""+_numOfBalls);
+	}
+	
+	private void updateLostLabel() {
+		_lostLabel.setText(""+_numOfBallsLost);
+	}
+	
+	private void updateHitsLabel() {
+		_hitsLabel.setText(""+_numOfHits);
+	}
+	
+	private void toggleGodMode() {
+		_godMode = !_godMode;
+		_godModeLabel.setVisible(_godMode);
+	}
+	
+	private boolean fixtureIsCollisionType(Fixture fixture, CollisionType collisionType) {
+		Body body = fixture.getBody();
+		if (body != null) {
+			Object userData = body.getUserData();
+			if (userData != null) {
+				return (userData == collisionType);
+			}
+		}
+		return false;
+	}
+	
+	private void requestDestroyBall(Body ballBody) {
+		if (_deadBalls.indexOf(ballBody, true) == -1) {
+			_deadBalls.add(ballBody);
+		}
+	}
+	
+	private void ballHit(Body ball) {
+		_numOfHits++;
+		updateHitsLabel();
+	}
+	
+	private void createWall() {
+		BodyDef wallBodyDef = new BodyDef();
+		wallBodyDef.type = BodyDef.BodyType.KinematicBody;
+		wallBodyDef.position.set(0, 0);
+		
+		_wallBody = _world.createBody(wallBodyDef);
+		_wallBody.setUserData(CollisionType.WALL);
+		
+		EdgeShape wallShape = new EdgeShape();
+		FixtureDef fixtureDef = new FixtureDef();
+        fixtureDef.shape = wallShape;
+        fixtureDef.density = 1f;
+        
+        wallShape.set(_wallPadding, _wallPadding, _camera.viewportWidth-_wallPadding, _wallPadding);
+        _wallBody.createFixture(fixtureDef);
+        
+        wallShape.set(_wallPadding, _camera.viewportHeight-_wallPadding, _camera.viewportWidth-_wallPadding, _camera.viewportHeight-_wallPadding);
+        _wallBody.createFixture(fixtureDef);
+        
+        wallShape.set(_wallPadding, _wallPadding, _wallPadding, _camera.viewportHeight-_wallPadding);
+        _wallBody.createFixture(fixtureDef);
+        
+        wallShape.set(_camera.viewportWidth-_wallPadding, _wallPadding, _camera.viewportWidth-_wallPadding, _camera.viewportHeight-_wallPadding);
+        _wallBody.createFixture(fixtureDef);
 	}
 	
 	private void createPaddles() {
@@ -142,8 +463,8 @@ public class PongGame extends ApplicationAdapter {
 	        BodyDef bodyDef = new BodyDef();
 	        bodyDef.type = BodyDef.BodyType.DynamicBody;
 	        
-	        
 	        Body paddleBody = _paddleBodies[i] = _world.createBody(bodyDef);
+	        paddleBody.setUserData(CollisionType.PADDLE);
 	        
 	        PolygonShape shape = new PolygonShape();
 			shape.setAsBox(width/2, height/2);
@@ -157,7 +478,7 @@ public class PongGame extends ApplicationAdapter {
 	        shape.dispose();
 	        
 	        MouseJointDef mouseJointDef = new MouseJointDef();
-	        mouseJointDef.bodyA = _groundBody;
+	        mouseJointDef.bodyA = _dummyBody;
 	        mouseJointDef.bodyB = paddleBody;
 	        mouseJointDef.collideConnected = true;
 	        mouseJointDef.maxForce = _paddleMaxForce[i] * paddleBody.getMass();
@@ -168,26 +489,32 @@ public class PongGame extends ApplicationAdapter {
 	        Vector2 worldAxis = new Vector2(indexIsEven?1.0f:0.0f, indexIsEven?0.0f:1.0f);
 	        PrismaticJointDef prismaticJointDef = new PrismaticJointDef();
 	        prismaticJointDef.collideConnected = false;
-	        prismaticJointDef.initialize(paddleBody, _groundBody, paddleBody.getWorldCenter(), worldAxis);
+	        prismaticJointDef.initialize(paddleBody, _dummyBody, paddleBody.getWorldCenter(), worldAxis);
 	        _world.createJoint(prismaticJointDef);
 		}
 	}
 	
 	private void createBall() {
-		if (_numOfBalls == MAX_NUM_OF_BALLS) return;
+		if (_numOfBalls >= MAX_NUM_OF_BALLS) return;
 		
-		float viewportWidth = _camera.viewportWidth;
-		float viewportHeight = _camera.viewportHeight;
+		Vector2 position;
+		if (CREATE_BALL_ON_POINTER) {
+			position = cursorToWorldPosition(Gdx.input.getX(), Gdx.input.getY());
+		} else {
+			position = new Vector2(_camera.viewportWidth/2, _camera.viewportHeight/2);
+		}
 		
 		float ballAngle = (float) (Math.random()*2*Math.PI);
 		
 		BodyDef bodyDef = new BodyDef();
         bodyDef.type = BodyDef.BodyType.DynamicBody;
-        bodyDef.position.set(viewportWidth/2, viewportHeight/2);
+        bodyDef.position.set(position);
         bodyDef.angle = ballAngle;
         
-        Body ballBody = _ballBodies[_numOfBalls] = _world.createBody(bodyDef);
-
+        Body ballBody = _world.createBody(bodyDef);
+        ballBody.setUserData(CollisionType.BALL);
+        _ballBodies.add(ballBody);
+        
         CircleShape shape = new CircleShape();
 		shape.setRadius(_ballRadius);
 		
@@ -197,7 +524,8 @@ public class PongGame extends ApplicationAdapter {
         fixtureDef.friction = 0.0f;
         fixtureDef.restitution = 1.0f;
 
-        _ballFixtures[0] = ballBody.createFixture(fixtureDef);
+        Fixture ballFixture = ballBody.createFixture(fixtureDef);
+        _ballFixtures.add(ballFixture);
         shape.dispose();
         
         float velocityX = (float) (_ballVelocity*Math.cos(ballAngle));
@@ -207,6 +535,26 @@ public class PongGame extends ApplicationAdapter {
         ballBody.applyLinearImpulse(impulse, bodyDef.position, true);
         
         _numOfBalls++;
+        updateBallCounterLabel();
+	}
+	
+	private void destroyDeadBalls() {
+		for (Body body : _deadBalls) {
+			destroyBall(body);
+		}
+		_deadBalls.clear();
+	}
+	
+	private void destroyBall(Body ballBody) {
+		Fixture ballFixture = ballBody.getFixtureList().first();
+		
+		_ballBodies.removeValue(ballBody, true);
+		_ballFixtures.removeValue(ballFixture, true);
+		_world.destroyBody(ballBody);
+		_numOfBalls--;
+		_numOfBallsLost++;
+		updateBallCounterLabel();
+		updateLostLabel();
 	}
 	
 	private void startGame() {
@@ -215,7 +563,19 @@ public class PongGame extends ApplicationAdapter {
  
 	@Override
 	public void render() {
-		_world.step(Gdx.graphics.getDeltaTime(), 6, 2);
+		float deltaTime = Gdx.graphics.getDeltaTime();
+		_totalTime += deltaTime;
+		_frameCount++;
+		
+		if (_totalTime > 1.0)
+	    {
+	        updateFPSCounterLabel(_frameCount/_totalTime);
+	        _frameCount = 0;
+	        _totalTime = 0;
+	    }
+		
+		_camera.update();
+		_world.step(deltaTime, 6, 2);
 
 		Gdx.gl.glClearColor(0, 0, 0, 1);
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
@@ -225,10 +585,19 @@ public class PongGame extends ApplicationAdapter {
 		renderPaddles();
 		renderBalls();
 		
-		if (BOX2D_DEBUG_DRAW) {
+		if (_drawStyle == DrawStyle.DEBUG || _drawStyle == DrawStyle.NORMAL_AND_DEBUG) {
 			_spriteBatch.begin();
 			_debugRenderer.render(_world, _camera.combined);
 			_spriteBatch.end();
+		}
+		
+		_stage.act(deltaTime);
+		_stage.draw();
+		
+		destroyDeadBalls();
+		
+		if (_infiniteSpawn) {
+			createBall();
 		}
 	}
 	
@@ -238,13 +607,10 @@ public class PongGame extends ApplicationAdapter {
 	}
 	
 	private void renderBalls() {
-		for (int i=0; i<_ballBodies.length; i++) {
-			Body body = _ballBodies[i];
-			if (body == null) continue;
-			
+		for (Body body : _ballBodies) {
 			Vector2 position = body.getPosition();
 			
-			if (SHAPE_RENDERER_DRAW) {
+			if (_drawStyle == DrawStyle.NORMAL || _drawStyle == DrawStyle.NORMAL_AND_DEBUG) {
 				_shapeRenderer.begin(ShapeType.Filled);
 				_shapeRenderer.setColor(0, 0, 1, 1);
 				_shapeRenderer.circle(position.x, position.y, _ballRadius);
@@ -271,7 +637,7 @@ public class PongGame extends ApplicationAdapter {
 			}
 			_paddleMouseJoints[i].setTarget(paddlePosition);
 			
-			if (SHAPE_RENDERER_DRAW) {
+			if (_drawStyle == DrawStyle.NORMAL || _drawStyle == DrawStyle.NORMAL_AND_DEBUG) {
 				_shapeRenderer.begin(ShapeType.Filled);
 				_shapeRenderer.setColor(1, 0, 0, 1);
 				_shapeRenderer.rect(position.x-size.x/2, position.y-size.y/2, size.x/2, size.y/2, size.x, size.y, 1.0f, 1.0f, angle);
