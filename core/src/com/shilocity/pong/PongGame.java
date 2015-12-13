@@ -58,12 +58,6 @@ public class PongGame extends ApplicationAdapter {
 		NORMAL_AND_DEBUG
 	}
 	
-	private enum CollisionType {
-		WALL,
-		BALL,
-		PADDLE
-	}
-	
 	OrthographicCamera _camera;
 	ShapeRenderer _shapeRenderer;
 	SpriteBatch _spriteBatch;
@@ -212,20 +206,20 @@ public class PongGame extends ApplicationAdapter {
             	Fixture fixtureA = contact.getFixtureA();
             	Fixture fixtureB = contact.getFixtureB();
             	
-            	if (fixtureIsCollisionType(fixtureA, CollisionType.BALL)) {
-            		if (fixtureIsCollisionType(fixtureB, CollisionType.WALL)) {
+            	if (fixtureIsCollisionType(fixtureA, BodyUserData.CollisionType.BALL)) {
+            		if (fixtureIsCollisionType(fixtureB,  BodyUserData.CollisionType.WALL)) {
             			if (!_godMode) {
             				requestDestroyBall(fixtureA.getBody());
             			}
-            		} else if (fixtureIsCollisionType(fixtureB, CollisionType.PADDLE)) {
+            		} else if (fixtureIsCollisionType(fixtureB,  BodyUserData.CollisionType.PADDLE)) {
             			ballHit(fixtureA.getBody());
             		}
-            	} else if (fixtureIsCollisionType(fixtureB, CollisionType.BALL)) {
-            		if (fixtureIsCollisionType(fixtureA, CollisionType.WALL)) {
+            	} else if (fixtureIsCollisionType(fixtureB,  BodyUserData.CollisionType.BALL)) {
+            		if (fixtureIsCollisionType(fixtureA,  BodyUserData.CollisionType.WALL)) {
             			if (!_godMode) {
             				requestDestroyBall(fixtureB.getBody());
             			}
-            		} else if (fixtureIsCollisionType(fixtureA, CollisionType.PADDLE)) {
+            		} else if (fixtureIsCollisionType(fixtureA,  BodyUserData.CollisionType.PADDLE)) {
             			ballHit(fixtureB.getBody());
             		}
             	}
@@ -432,12 +426,12 @@ public class PongGame extends ApplicationAdapter {
 		_godModeLabel.setVisible(_godMode);
 	}
 	
-	private boolean fixtureIsCollisionType(Fixture fixture, CollisionType collisionType) {
+	private boolean fixtureIsCollisionType(Fixture fixture,  BodyUserData.CollisionType collisionType) {
 		Body body = fixture.getBody();
 		if (body != null) {
-			Object userData = body.getUserData();
-			if (userData != null) {
-				return (userData == collisionType);
+			BodyUserData bodyUserData = (BodyUserData)body.getUserData();
+			if (bodyUserData != null) {
+				return (bodyUserData.collisionType == collisionType);
 			}
 		}
 		return false;
@@ -460,7 +454,10 @@ public class PongGame extends ApplicationAdapter {
 		wallBodyDef.position.set(0, 0);
 		
 		_wallBody = _world.createBody(wallBodyDef);
-		_wallBody.setUserData(CollisionType.WALL);
+		
+		BodyUserData bodyUserData = new BodyUserData();
+		bodyUserData.collisionType = BodyUserData.CollisionType.WALL;
+		_wallBody.setUserData(bodyUserData);
 		
 		EdgeShape wallShape = new EdgeShape();
 		FixtureDef fixtureDef = new FixtureDef();
@@ -504,7 +501,10 @@ public class PongGame extends ApplicationAdapter {
 	        bodyDef.type = BodyDef.BodyType.DynamicBody;
 	        
 	        Body paddleBody = _paddleBodies[i] = _world.createBody(bodyDef);
-	        paddleBody.setUserData(CollisionType.PADDLE);
+	        
+	        BodyUserData bodyUserData = new BodyUserData();
+			bodyUserData.collisionType = BodyUserData.CollisionType.PADDLE;
+			paddleBody.setUserData(bodyUserData);
 	        
 	        Shape shape;
 	        if (_circlePaddle) {
@@ -583,7 +583,11 @@ public class PongGame extends ApplicationAdapter {
         bodyDef.angle = ballAngle;
         
         Body ballBody = _world.createBody(bodyDef);
-        ballBody.setUserData(CollisionType.BALL);
+        
+        BodyUserData bodyUserData = new BodyUserData();
+		bodyUserData.collisionType = BodyUserData.CollisionType.BALL;
+		ballBody.setUserData(bodyUserData);
+		
         _ballBodies.add(ballBody);
         
         Shape shape;
