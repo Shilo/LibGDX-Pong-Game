@@ -41,18 +41,28 @@ import com.badlogic.gdx.utils.Timer;
 public class PongGame extends ApplicationAdapter {
 	final int NUM_OF_PADDLES = 4;
 	final int MAX_NUM_OF_BALLS = 9999;
+	
 	final boolean CREATE_BALL_ON_POINTER = true;
 	final boolean INFINITE_SPAWN_ON_LEFT_CLICK = true;
+	final boolean INFINITE_FORCE_ON_RIGHT_CLICK = true;
+	final boolean INVERT_FORCE = false;
 	final float INFINITE_SPAWN_DELAY = 0.3f;
+	final float INFINITE_FORCE_DELAY = 0.3f;
 	final boolean CIRCLE_PADDLE = false;
 	final boolean SQUARE_BALL = false;
 	final boolean SMOOTH_RANDOM_BALL_COLOR = true;
+	final float FORCE_STRENGTH = 1000.0f;
+	
 	final Vector2 DISPLAY_RESOLUTION = new Vector2(1280, 768);
 	final boolean START_FULLSCREEN = false;
+	
 	final int FULLSCREEN_KEY_CODE = 34;
+	final int EXIT_FULLSCREEN_KEY_CODE = 131;
 	final int TOGGLE_PADDLE_SHAPE_KEY_CODE = 44;
 	final int TOGGLE_BALL_SHAPE_KEY_CODE = 30;
 	final int TOGGLE_BALL_COLOR_STYLE_KEY_CODE = 31;
+	final int INVERT_FORCE_KEY_CODE = 50;
+	final int DRAW_MODE_KEY_CODE = 32;
 	
 	private enum DrawStyle {
 		NORMAL,
@@ -96,7 +106,10 @@ public class PongGame extends ApplicationAdapter {
 	Array<Body> _deadBalls = new Array<Body>();
 	boolean _godMode = false;
 	boolean _infiniteSpawn = false;
+	boolean _invertForce = false;
 	Timer _infiniteSpawnDelayTimer;
+	boolean _infiniteForce = false;
+	Timer _infiniteForceDelayTimer;
 	int _frameCount = 0;
 	double _totalTime = 0;
 	double _currentTime = 0;
@@ -149,6 +162,12 @@ public class PongGame extends ApplicationAdapter {
 		Gdx.graphics.setDisplayMode((int)DISPLAY_RESOLUTION.x, (int)DISPLAY_RESOLUTION.y, !Gdx.graphics.isFullscreen());
 	}
 	
+	private void exitFullscreen() {
+		if (Gdx.graphics.isFullscreen()) {
+			Gdx.graphics.setDisplayMode((int)DISPLAY_RESOLUTION.x, (int)DISPLAY_RESOLUTION.y, false);
+		}
+	}
+	
 	private void togglePaddleShape() {
 		_circlePaddle = !_circlePaddle;
 		recreatePaddles();
@@ -160,6 +179,10 @@ public class PongGame extends ApplicationAdapter {
 	
 	private void toggleBallColorStyle() {
 		_smoothRandomBallColor = !_smoothRandomBallColor;
+	}
+	
+	private void toggleInvertForce() {
+		_invertForce = !_invertForce;
 	}
 	
 	public void resize(int width, int height) {
@@ -273,23 +296,25 @@ public class PongGame extends ApplicationAdapter {
 			@Override
 			public boolean touchDown (int screenX, int screenY, int pointer, int button) {
 				if (button == 1) {
-					toggleGodMode();
-				} else if (button == 2) {
-					switch (_drawStyle) {
-						case NORMAL:
-							_drawStyle = DrawStyle.DEBUG;
-							break;
-						case DEBUG:
-							_drawStyle = DrawStyle.NORMAL_AND_DEBUG;
-							break;
-						case NORMAL_AND_DEBUG:
-							_drawStyle = DrawStyle.NORMAL;
+					createForce();
+					if (INFINITE_FORCE_ON_RIGHT_CLICK) {
+						if (_infiniteForceDelayTimer != null) {
+							_infiniteForceDelayTimer.stop();
+							_infiniteForceDelayTimer.clear();
+						}
+						_infiniteForceDelayTimer = new Timer();
+						_infiniteForceDelayTimer.scheduleTask( 
+						        new Timer.Task() {
+						            @Override
+						            public void run() {
+						            	_infiniteForce = true;
+						            }
+						        }, 
+						        INFINITE_FORCE_DELAY 
+						);
 					}
-					boolean debugDraw = (_drawStyle == DrawStyle.DEBUG || _drawStyle == DrawStyle.NORMAL_AND_DEBUG);
-					_tableLeft.setDebug(debugDraw);
-					_tableCenter.setDebug(debugDraw);
-					_tableRight.setDebug(debugDraw);
-					_tableBottomCenter.setDebug(debugDraw);
+				} else if (button == 2) {
+					toggleGodMode();
 				} else {
 					createBall();
 					if (INFINITE_SPAWN_ON_LEFT_CLICK) {
@@ -313,14 +338,26 @@ public class PongGame extends ApplicationAdapter {
 			}
 			
 			public boolean touchUp (int screenX, int screenY, int pointer, int button) {
-				if (INFINITE_SPAWN_ON_LEFT_CLICK) {
-					if (_infiniteSpawnDelayTimer != null) {
-						_infiniteSpawnDelayTimer.stop();
-						_infiniteSpawnDelayTimer.clear();
-						_infiniteSpawnDelayTimer = null;
+				if (button == 0) {
+					if (INFINITE_SPAWN_ON_LEFT_CLICK) {
+						if (_infiniteSpawnDelayTimer != null) {
+							_infiniteSpawnDelayTimer.stop();
+							_infiniteSpawnDelayTimer.clear();
+							_infiniteSpawnDelayTimer = null;
+						}
+						_infiniteSpawn = false;
+						return true;
 					}
-					_infiniteSpawn = false;
-					return true;
+				} else if (button == 1) {
+					if (INFINITE_FORCE_ON_RIGHT_CLICK) {
+						if (_infiniteForceDelayTimer != null) {
+							_infiniteForceDelayTimer.stop();
+							_infiniteForceDelayTimer.clear();
+							_infiniteForceDelayTimer = null;
+						}
+						_infiniteForce = false;
+						return true;
+					}
 				}
 				return false;
 			}
@@ -339,6 +376,9 @@ public class PongGame extends ApplicationAdapter {
 				if (keycode == FULLSCREEN_KEY_CODE) {
 					toggleFullscreen();
 					return true;
+				} else if (keycode == EXIT_FULLSCREEN_KEY_CODE) {
+					exitFullscreen();
+					return true;
 				} else if (keycode == TOGGLE_PADDLE_SHAPE_KEY_CODE) {
 					togglePaddleShape();
 					return true;
@@ -348,10 +388,34 @@ public class PongGame extends ApplicationAdapter {
 				} else if (keycode == TOGGLE_BALL_COLOR_STYLE_KEY_CODE) {
 					toggleBallColorStyle();
 					return true;
+				} else if (keycode == DRAW_MODE_KEY_CODE) {
+					toggleDrawMode();
+					return true;
+				} else if (keycode == INVERT_FORCE_KEY_CODE) {
+					toggleInvertForce();
+					return true;
 				}
 				return false;
 			}
 		});
+	}
+	
+	private void toggleDrawMode() {
+		switch (_drawStyle) {
+			case NORMAL:
+				_drawStyle = DrawStyle.DEBUG;
+				break;
+			case DEBUG:
+				_drawStyle = DrawStyle.NORMAL_AND_DEBUG;
+				break;
+			case NORMAL_AND_DEBUG:
+				_drawStyle = DrawStyle.NORMAL;
+		}
+		boolean debugDraw = (_drawStyle == DrawStyle.DEBUG || _drawStyle == DrawStyle.NORMAL_AND_DEBUG);
+		_tableLeft.setDebug(debugDraw);
+		_tableCenter.setDebug(debugDraw);
+		_tableRight.setDebug(debugDraw);
+		_tableBottomCenter.setDebug(debugDraw);
 	}
 	
 	private void createUserInterface() {
@@ -375,13 +439,16 @@ public class PongGame extends ApplicationAdapter {
 		_hitsLabel = new Label(""+_numOfHits, labelStyle);
 		
 		Label fullscreenTextLabel = new Label("Fullscreen", labelStyle);
-		Label fullscreenLabel = new Label(Input.Keys.toString(FULLSCREEN_KEY_CODE), labelStyle);
+		Label fullscreenLabel = new Label(Input.Keys.toString(FULLSCREEN_KEY_CODE) + " / " + Input.Keys.toString(EXIT_FULLSCREEN_KEY_CODE), labelStyle);
 		
 		Label godModeTextLabel = new Label("God Mode", labelStyle);
-		Label godModeLabel = new Label("Right Click", labelStyle);
+		Label godModeLabel = new Label("Middle Click", labelStyle);
+		
+		Label ballForceTextLabel = new Label("Apply Force", labelStyle);
+		Label ballForceLabel = new Label("Right Click", labelStyle);
 		
 		Label drawModeTextLabel = new Label("Draw Mode", labelStyle);
-		Label drawModeLabel = new Label("Middle Click", labelStyle);
+		Label drawModeLabel = new Label(Input.Keys.toString(DRAW_MODE_KEY_CODE), labelStyle);
 		
 		Label spawnBallsTextLabel = new Label("Spawn Balls", labelStyle);
 		Label spawnBallsLabel = new Label("Left Click / Hold, Scroll", labelStyle);
@@ -394,6 +461,9 @@ public class PongGame extends ApplicationAdapter {
 		
 		Label ballColorStyleTextLabel = new Label("Ball Color", labelStyle);
 		Label ballColorStyleLabel = new Label(Input.Keys.toString(TOGGLE_BALL_COLOR_STYLE_KEY_CODE), labelStyle);
+		
+		Label invertForceTextLabel = new Label("Invert Force", labelStyle);
+		Label invertForceLabel = new Label(Input.Keys.toString(INVERT_FORCE_KEY_CODE), labelStyle);
 		
 		_tableLeft.top().left();
 		_tableLeft.add(fpsCounterTextLabel);
@@ -415,19 +485,23 @@ public class PongGame extends ApplicationAdapter {
 		_tableBottomCenter.bottom();
 		_tableBottomCenter.add(spawnBallsTextLabel).padRight(padding);
 		_tableBottomCenter.add(godModeTextLabel).padRight(padding);
-		_tableBottomCenter.add(drawModeTextLabel).padRight(padding);
+		_tableBottomCenter.add(ballForceTextLabel).padRight(padding);
 		_tableBottomCenter.add(fullscreenTextLabel).padRight(padding);
+		_tableBottomCenter.add(drawModeTextLabel).padRight(padding);
 		_tableBottomCenter.add(paddleShapeTextLabel).padRight(padding);
 		_tableBottomCenter.add(ballShapeTextLabel).padRight(padding);
-		_tableBottomCenter.add(ballColorStyleTextLabel);
+		_tableBottomCenter.add(ballColorStyleTextLabel).padRight(padding);
+		_tableBottomCenter.add(invertForceTextLabel);
 		_tableBottomCenter.row();
 		_tableBottomCenter.add(spawnBallsLabel).padRight(padding);
 		_tableBottomCenter.add(godModeLabel).padRight(padding);
-		_tableBottomCenter.add(drawModeLabel).padRight(padding);
+		_tableBottomCenter.add(ballForceLabel).padRight(padding);
 		_tableBottomCenter.add(fullscreenLabel).padRight(padding);
+		_tableBottomCenter.add(drawModeLabel).padRight(padding);
 		_tableBottomCenter.add(paddleShapeLabel).padRight(padding);
 		_tableBottomCenter.add(ballShapeLabel).padRight(padding);
-		_tableBottomCenter.add(ballColorStyleLabel);
+		_tableBottomCenter.add(ballColorStyleLabel).padRight(padding);
+		_tableBottomCenter.add(invertForceLabel);
 	}
 	
 	private void updateFPSCounterLabel(double fps) {
@@ -591,6 +665,27 @@ public class PongGame extends ApplicationAdapter {
 		}
 	}
 	
+	private void createForce() {
+		Vector2 forcePosition;
+		if (CREATE_BALL_ON_POINTER) {
+			forcePosition = cursorToWorldPosition(Gdx.input.getX(), Gdx.input.getY());
+		} else {
+			forcePosition = new Vector2(_camera.viewportWidth/2, _camera.viewportHeight/2);
+		}
+		
+		for (Body ballBody : _ballBodies) {
+			Vector2 position = ballBody.getPosition();
+			double forceAngle = Math.atan2(forcePosition.y - position.y, forcePosition.x - position.x);
+			
+			float force = FORCE_STRENGTH;
+			if (_invertForce) {
+				force = -force;
+			}
+			Vector2 forceVector = new Vector2((float)Math.cos(forceAngle)*force, (float)Math.sin(forceAngle)*force);
+			ballBody.applyForceToCenter(forceVector, true);
+		}
+	}
+	
 	private void createBall() {
 		if (_numOfBalls >= MAX_NUM_OF_BALLS) return;
 		
@@ -718,6 +813,9 @@ public class PongGame extends ApplicationAdapter {
 		
 		if (_infiniteSpawn) {
 			createBall();
+		}
+		if (_infiniteForce) {
+			createForce();
 		}
 	}
 	
