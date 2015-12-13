@@ -57,6 +57,7 @@ public class PongGame extends ApplicationAdapter {
 	final boolean INFINITE_SPAWN_ON_LEFT_CLICK = true;
 	final boolean INFINITE_FORCE_ON_RIGHT_CLICK = true;
 	final boolean INVERT_FORCE = false;
+	final boolean INVERT_PADDLE_MOVEMENT = false;
 	final boolean RENDER_LIGHT = true;
 	final boolean CENTER_LIGHT = true;
 	final boolean REAL_SHADOWS = false;
@@ -67,6 +68,12 @@ public class PongGame extends ApplicationAdapter {
 	final boolean SQUARE_BALL = false;
 	final boolean SMOOTH_RANDOM_BALL_COLOR = true;
 	final float FORCE_STRENGTH = 1000.0f;
+	final float SCROLLING_TEXT_POS_PER_SEC = 100.0f;
+	final float SCROLLING_TEXT_ALPHA_PER_SEC = 0.5f;
+	final Color SCROLLING_TEXT_COLOR_POSITIVE = Color.YELLOW;
+	final Color SCROLLING_TEXT_COLOR_NEGATIVE = Color.RED;
+	final Color SCROLLING_TEXT_COLOR_WELCOME = Color.GREEN;
+	final String SCROLLING_TEXT_WELCOME = "LEFT CLICK TO START";
 	
 	final Vector2 DISPLAY_RESOLUTION = new Vector2(1280, 768);
 	final boolean START_FULLSCREEN = false;
@@ -82,6 +89,7 @@ public class PongGame extends ApplicationAdapter {
 	final int REAL_SHADOWS_KEY_CODE = 47;
 	final int HIDE_PADDLE_KEY_CODE = 36;
 	final int CLEAR_BALLS_KEY_CODE = 45;
+	final int INVERT_PADDLE_MOVEMENT_KEY_CODE = 41;
 	
 	private enum DrawStyle {
 		NORMAL,
@@ -137,7 +145,8 @@ public class PongGame extends ApplicationAdapter {
 	Array<Body> _deadBalls = new Array<Body>();
 	boolean _godMode = false;
 	boolean _infiniteSpawn = false;
-	boolean _invertForce = false;
+	boolean _invertForce = INVERT_FORCE;
+	boolean _invertPaddleMovement = INVERT_PADDLE_MOVEMENT;
 	boolean _renderLight = RENDER_LIGHT;
 	boolean _realShadows = REAL_SHADOWS;
 	boolean _hidePaddle = HIDE_PADDLE;
@@ -153,6 +162,9 @@ public class PongGame extends ApplicationAdapter {
 	SmoothColorManager _ballColorManager;
 	int _ballColorSecondsPassed = 0;
 	int _lightColorSecondsPassed = 0;
+	Array<Label> _scrollingLabels = new Array<Label>();
+	boolean _didRender = false;
+	boolean _didToggleFullscreen = false;
 	
 	Label _fpsCounterLabel;
 	Label _godModeLabel;
@@ -180,6 +192,63 @@ public class PongGame extends ApplicationAdapter {
 		createInputHandling();
 		
 		startGame();
+	}
+	
+	private void didRender() {
+		addScrollingText(SCROLLING_TEXT_WELCOME, SCROLLING_TEXT_COLOR_WELCOME);
+	}
+	
+	private void addScrollingText(String text, Color color) {
+		LabelStyle labelStyle = new LabelStyle();
+		labelStyle.font = new BitmapFont();
+		labelStyle.fontColor = color;
+		
+		Label label = new Label(text, labelStyle);
+		
+		try {
+			float y = _tableBottomCenter.getRowHeight(0)+_tableBottomCenter.getRowHeight(1)+_tableBottomCenter.getPadBottom()+_tableBottomCenter.getPadTop();
+			float x = (Gdx.graphics.getWidth()-label.getWidth()*label.getFontScaleX())/2;
+			label.setPosition(x, y);
+			
+			if (_scrollingLabels.size > 0) {
+				Label lastLabel = _scrollingLabels.peek();
+				if (lastLabel != null && lastLabel.getY()<y+label.getHeight()) {
+					float offset = y+label.getHeight()-lastLabel.getY();
+					adjustScrollingText(offset);
+				}
+			}
+			
+			_stage.addActor(label);
+			
+			_scrollingLabels.add(label);
+		} catch(Exception e) {}
+	}
+	
+	private void adjustScrollingText(float y) {
+		float deltaTime = y/SCROLLING_TEXT_POS_PER_SEC;
+		renderScrollingText(deltaTime);
+	}
+	
+	private void renderScrollingText(float deltaTime) {
+		if (_scrollingLabels.size < 1) return;
+		
+		float screenWidth = Gdx.graphics.getWidth();
+		float positionPerSecond = SCROLLING_TEXT_POS_PER_SEC;
+		float alphaPerSecond = SCROLLING_TEXT_ALPHA_PER_SEC;
+		
+		for (Label label : _scrollingLabels) {
+			float x = (screenWidth-label.getWidth()*label.getFontScaleX())/2;
+			float y = label.getY()+positionPerSecond*deltaTime;
+			label.setPosition(x, y);
+			
+			Color curFontColor = label.getStyle().fontColor;
+			float alpha = curFontColor.a-alphaPerSecond*deltaTime;
+			label.getStyle().fontColor = new Color(curFontColor.r, curFontColor.g, curFontColor.b, alpha);
+			
+			if (alpha <= 0.0f) {
+				_scrollingLabels.removeValue(label, true);
+			}
+		}
 	}
 	
 	private void createColorManagers() {
@@ -249,11 +318,13 @@ public class PongGame extends ApplicationAdapter {
 	}
 	
 	private void toggleFullscreen() {
+		_didToggleFullscreen = true;
 		Gdx.graphics.setDisplayMode((int)DISPLAY_RESOLUTION.x, (int)DISPLAY_RESOLUTION.y, !Gdx.graphics.isFullscreen());
 	}
 	
 	private void exitFullscreen() {
 		if (Gdx.graphics.isFullscreen()) {
+			_didToggleFullscreen = true;
 			Gdx.graphics.setDisplayMode((int)DISPLAY_RESOLUTION.x, (int)DISPLAY_RESOLUTION.y, false);
 		}
 	}
@@ -261,31 +332,68 @@ public class PongGame extends ApplicationAdapter {
 	private void togglePaddleShape() {
 		_circlePaddle = !_circlePaddle;
 		recreatePaddles();
+		if (_circlePaddle) {
+			addScrollingText("CIRCLE PADDLES", SCROLLING_TEXT_COLOR_POSITIVE);
+		} else {
+			addScrollingText("RECTANGLE PADDLES", SCROLLING_TEXT_COLOR_POSITIVE);
+		}
 	}
 	
 	private void toggleHidePaddle() {
 		_hidePaddle = !_hidePaddle;
 		if (_hidePaddle) {
 			destroyPaddles();
+			addScrollingText("PADDLES HIDDEN", SCROLLING_TEXT_COLOR_NEGATIVE);
 		} else {
 			recreatePaddles();
+			addScrollingText("PADDLES SHOWN", SCROLLING_TEXT_COLOR_POSITIVE);
 		}
+	}
+	
+	private void toggleInvertPaddleMovement() {
+		_invertPaddleMovement = !_invertPaddleMovement;
+		if (_invertPaddleMovement) {
+			addScrollingText("INVERTED PADDLE MOVEMENT", SCROLLING_TEXT_COLOR_NEGATIVE);
+		} else {
+			addScrollingText("NORMAL PADDLE MOVEMENT", SCROLLING_TEXT_COLOR_POSITIVE);
+		}
+		updatePaddlePosition();
 	}
 	
 	private void toggleBallShape() {
 		_squareBall = !_squareBall;
+		if (_squareBall) {
+			addScrollingText("SQUARE BALLS", SCROLLING_TEXT_COLOR_POSITIVE);
+		} else {
+			addScrollingText("CIRCLE BALLS", SCROLLING_TEXT_COLOR_POSITIVE);
+		}
 	}
 	
 	private void toggleBallColorStyle() {
 		_smoothRandomBallColor = !_smoothRandomBallColor;
+		if (_smoothRandomBallColor) {
+			addScrollingText("SMOOTH BALL COLORS", SCROLLING_TEXT_COLOR_POSITIVE);
+		} else {
+			addScrollingText("RANDOM BALL COLORS", SCROLLING_TEXT_COLOR_POSITIVE);
+		}
 	}
 	
 	private void toggleInvertForce() {
 		_invertForce = !_invertForce;
+		if (_invertForce) {
+			addScrollingText("PUSH FORCE MODE", SCROLLING_TEXT_COLOR_POSITIVE);
+		} else {
+			addScrollingText("PULL FORCE MODE", SCROLLING_TEXT_COLOR_POSITIVE);
+		}
 	}
 	
 	private void toggleRealShadows() {
 		_realShadows = !_realShadows;
+		if (_realShadows) {
+			addScrollingText("FULL SHADOWS", SCROLLING_TEXT_COLOR_POSITIVE);
+		} else {
+			addScrollingText("GROUND SHADOWS", SCROLLING_TEXT_COLOR_POSITIVE);
+		}
 	}
 	
 	private void toggleLightStyle() {
@@ -299,15 +407,19 @@ public class PongGame extends ApplicationAdapter {
 		switch (_lightStyle) {
 			case GRID_AND_CENTER:
 				_lightStyle = LightStyle.GRID;
+				addScrollingText("GRID LIGHTS", SCROLLING_TEXT_COLOR_POSITIVE);
 				break;
 			case GRID:
 				_lightStyle = LightStyle.CENTER;
+				addScrollingText("CENTER LIGHT", SCROLLING_TEXT_COLOR_POSITIVE);
 				break;
 			case CENTER:
 				_lightStyle = LightStyle.NONE;
+				addScrollingText("NO LIGHTS", SCROLLING_TEXT_COLOR_NEGATIVE);
 				break;
 			case NONE:
 				_lightStyle = LightStyle.GRID_AND_CENTER;
+				addScrollingText("GRID AND CENTER LIGHTS", SCROLLING_TEXT_COLOR_POSITIVE);
 		}
 		
 		int i = 0;
@@ -342,6 +454,23 @@ public class PongGame extends ApplicationAdapter {
 	
 	public void resize(int width, int height) {
 	    _stage.getViewport().update(width, height, true);
+	    
+	    if (_didToggleFullscreen) {
+	    	_didToggleFullscreen = false;
+		    new Timer().scheduleTask( 
+			        new Timer.Task() {
+			            @Override
+			            public void run() {
+			            	if (Gdx.graphics.isFullscreen()) {
+			    				addScrollingText("FULLSCREEN MODE", SCROLLING_TEXT_COLOR_POSITIVE);
+			    			} else {
+			    				addScrollingText("WINDOWED MODE", SCROLLING_TEXT_COLOR_POSITIVE);
+			    			}
+			            }
+			        }, 
+			        0.5f
+			);
+	    }
 	}
 	
 	public void dispose() {
@@ -467,6 +596,7 @@ public class PongGame extends ApplicationAdapter {
 						            @Override
 						            public void run() {
 						            	_infiniteForce = true;
+						            	addScrollingText("FORCE ON", SCROLLING_TEXT_COLOR_POSITIVE);
 						            }
 						        }, 
 						        INFINITE_FORCE_DELAY 
@@ -487,6 +617,7 @@ public class PongGame extends ApplicationAdapter {
 						            @Override
 						            public void run() {
 						            	_infiniteSpawn = true;
+						            	addScrollingText("SPAWN ON", SCROLLING_TEXT_COLOR_POSITIVE);
 						            }
 						        }, 
 						        INFINITE_SPAWN_DELAY 
@@ -504,7 +635,10 @@ public class PongGame extends ApplicationAdapter {
 							_infiniteSpawnDelayTimer.clear();
 							_infiniteSpawnDelayTimer = null;
 						}
-						_infiniteSpawn = false;
+						if (_infiniteSpawn) {
+							_infiniteSpawn = false;
+							addScrollingText("SPAWN OFF", SCROLLING_TEXT_COLOR_NEGATIVE);
+						}
 						return true;
 					}
 				} else if (button == 1) {
@@ -514,7 +648,10 @@ public class PongGame extends ApplicationAdapter {
 							_infiniteForceDelayTimer.clear();
 							_infiniteForceDelayTimer = null;
 						}
-						_infiniteForce = false;
+						if (_infiniteForce) {
+							_infiniteForce = false;
+							addScrollingText("FORCE OFF", SCROLLING_TEXT_COLOR_NEGATIVE);
+						}
 						return true;
 					}
 				}
@@ -563,7 +700,14 @@ public class PongGame extends ApplicationAdapter {
 					toggleHidePaddle();
 					return true;
 				} else if (keycode == CLEAR_BALLS_KEY_CODE) {
+					int count = _ballBodies.size;
 					requestDestroyBalls();
+					if (count > 0) {
+						addScrollingText("BALLS CLEARED", SCROLLING_TEXT_COLOR_NEGATIVE);
+					}
+					return true;
+				} else if (keycode == INVERT_PADDLE_MOVEMENT_KEY_CODE) {
+					toggleInvertPaddleMovement();
 					return true;
 				}
 				return false;
@@ -575,12 +719,15 @@ public class PongGame extends ApplicationAdapter {
 		switch (_drawStyle) {
 			case NORMAL:
 				_drawStyle = DrawStyle.DEBUG;
+				addScrollingText("DEBUG DRAW MODE", SCROLLING_TEXT_COLOR_POSITIVE);
 				break;
 			case DEBUG:
 				_drawStyle = DrawStyle.NORMAL_AND_DEBUG;
+				addScrollingText("NORMAL AND DEBUG DRAW MODE", SCROLLING_TEXT_COLOR_POSITIVE);
 				break;
 			case NORMAL_AND_DEBUG:
 				_drawStyle = DrawStyle.NORMAL;
+				addScrollingText("NORMAL DRAW MODE", SCROLLING_TEXT_COLOR_POSITIVE);
 		}
 		boolean debugDraw = (_drawStyle == DrawStyle.DEBUG || _drawStyle == DrawStyle.NORMAL_AND_DEBUG);
 		_tableLeft.setDebug(debugDraw);
@@ -593,7 +740,7 @@ public class PongGame extends ApplicationAdapter {
 		LabelStyle labelStyle = new LabelStyle();
 		labelStyle.font = new BitmapFont();
 		float topPadding = 50;
-		float bottomPadding = 20;
+		float bottomPadding = 10;
 
 		Label fpsCounterTextLabel = new Label("FPS", labelStyle);
 		_fpsCounterLabel = new Label("...", labelStyle);
@@ -631,6 +778,9 @@ public class PongGame extends ApplicationAdapter {
 		
 		Label hidePaddleTextLabel = new Label("Hide Paddles", labelStyle);
 		Label hidePaddleLabel = new Label(Input.Keys.toString(HIDE_PADDLE_KEY_CODE), labelStyle);
+		
+		Label paddleMovementTextLabel = new Label("Paddle Movement", labelStyle);
+		Label paddleMovementLabel = new Label(Input.Keys.toString(INVERT_PADDLE_MOVEMENT_KEY_CODE), labelStyle);
 		
 		Label paddleShapeTextLabel = new Label("Paddle Shape", labelStyle);
 		Label paddleShapeLabel = new Label(Input.Keys.toString(TOGGLE_PADDLE_SHAPE_KEY_CODE), labelStyle);
@@ -679,6 +829,7 @@ public class PongGame extends ApplicationAdapter {
 		}
 		_tableBottomCenter.add(drawModeTextLabel).padRight(bottomPadding);
 		_tableBottomCenter.add(hidePaddleTextLabel).padRight(bottomPadding);
+		_tableBottomCenter.add(paddleMovementTextLabel).padRight(bottomPadding);
 		_tableBottomCenter.add(paddleShapeTextLabel).padRight(bottomPadding);
 		_tableBottomCenter.add(ballShapeTextLabel).padRight(bottomPadding);
 		_tableBottomCenter.add(ballColorStyleTextLabel).padRight(bottomPadding);
@@ -695,6 +846,7 @@ public class PongGame extends ApplicationAdapter {
 		}
 		_tableBottomCenter.add(drawModeLabel).padRight(bottomPadding);
 		_tableBottomCenter.add(hidePaddleLabel).padRight(bottomPadding);
+		_tableBottomCenter.add(paddleMovementLabel).padRight(bottomPadding);
 		_tableBottomCenter.add(paddleShapeLabel).padRight(bottomPadding);
 		_tableBottomCenter.add(ballShapeLabel).padRight(bottomPadding);
 		_tableBottomCenter.add(ballColorStyleLabel).padRight(bottomPadding);
@@ -723,6 +875,12 @@ public class PongGame extends ApplicationAdapter {
 	private void toggleGodMode() {
 		_godMode = !_godMode;
 		_godModeLabel.setVisible(_godMode);
+		
+		if (_godMode) {
+			addScrollingText("GOD MODE ON", SCROLLING_TEXT_COLOR_POSITIVE);
+		} else {
+			addScrollingText("GOD MODE OFF", SCROLLING_TEXT_COLOR_NEGATIVE);
+		}
 	}
 	
 	private boolean fixtureIsCollisionType(Fixture fixture,  BodyUserData.CollisionType collisionType) {
@@ -1053,14 +1211,21 @@ public class PongGame extends ApplicationAdapter {
 			_rayHandler.updateAndRender();
 		}
 		
+		renderScrollingText(deltaTime);
+		
+		_stage.act(deltaTime);
+		_stage.draw();
+		
 		if (_drawStyle == DrawStyle.DEBUG || _drawStyle == DrawStyle.NORMAL_AND_DEBUG) {
 			_spriteBatch.begin();
 			_debugRenderer.render(_world, _camera.combined);
 			_spriteBatch.end();
 		}
 		
-		_stage.act(deltaTime);
-		_stage.draw();
+		if (!_didRender) {
+			_didRender = true;
+			didRender();
+		}
 	}
 	
 	private void renderLightColors() {
@@ -1073,7 +1238,13 @@ public class PongGame extends ApplicationAdapter {
 	}
 	
 	private void updatePaddlePosition() {
-		Vector2 worldPosition = cursorToWorldPosition(Gdx.input.getX(), Gdx.input.getY());
+		int x = Gdx.input.getX();
+		int y = Gdx.input.getY();
+		if (_invertPaddleMovement) {
+			x = Gdx.graphics.getWidth()-x;
+			y = Gdx.graphics.getHeight()-y;
+		}
+		Vector2 worldPosition = cursorToWorldPosition(x, y);
 		_paddlePosition = new Vector2(worldPosition.x, worldPosition.y);
 	}
 	

@@ -6,7 +6,7 @@ import com.shilocity.pong.PongGame;
 
 public class DesktopLauncher {
 	public static final int VERSION_MAJOR = 0;
-	public static final int VERSION_MINOR = 7;
+	public static final int VERSION_MINOR = 8;
 	public static final int VERSION_REVISION = 0;
 	
 	public static void main (String[] arg) {
