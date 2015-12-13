@@ -1,0 +1,4 @@
+- Set _scaleFactor to 1.0f while retaining the ball velocity speed.
+- Custom and drawable shapes for ball and paddle.
+- Sounds and music.
+- Floating text when a text is changed.
