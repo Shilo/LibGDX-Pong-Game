@@ -1,5 +1,6 @@
 package com.shilocity.pong;
 
+import com.badlogic.gdx.Application.ApplicationType;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
@@ -438,8 +439,12 @@ public class PongGame extends ApplicationAdapter {
 		Label hitsTextLabel = new Label("Hits", labelStyle);
 		_hitsLabel = new Label(""+_numOfHits, labelStyle);
 		
-		Label fullscreenTextLabel = new Label("Fullscreen", labelStyle);
-		Label fullscreenLabel = new Label(Input.Keys.toString(FULLSCREEN_KEY_CODE) + " / " + Input.Keys.toString(EXIT_FULLSCREEN_KEY_CODE), labelStyle);
+		Label fullscreenTextLabel = null;
+		Label fullscreenLabel = null;
+		if (Gdx.app.getType() == ApplicationType.Desktop) {
+			fullscreenTextLabel = new Label("Fullscreen", labelStyle);
+			fullscreenLabel = new Label(Input.Keys.toString(FULLSCREEN_KEY_CODE) + " / " + Input.Keys.toString(EXIT_FULLSCREEN_KEY_CODE), labelStyle);
+		}
 		
 		Label godModeTextLabel = new Label("God Mode", labelStyle);
 		Label godModeLabel = new Label("Middle Click", labelStyle);
@@ -486,7 +491,9 @@ public class PongGame extends ApplicationAdapter {
 		_tableBottomCenter.add(spawnBallsTextLabel).padRight(padding);
 		_tableBottomCenter.add(godModeTextLabel).padRight(padding);
 		_tableBottomCenter.add(ballForceTextLabel).padRight(padding);
-		_tableBottomCenter.add(fullscreenTextLabel).padRight(padding);
+		if (Gdx.app.getType() == ApplicationType.Desktop) {
+			_tableBottomCenter.add(fullscreenTextLabel).padRight(padding);
+		}
 		_tableBottomCenter.add(drawModeTextLabel).padRight(padding);
 		_tableBottomCenter.add(paddleShapeTextLabel).padRight(padding);
 		_tableBottomCenter.add(ballShapeTextLabel).padRight(padding);
@@ -496,7 +503,9 @@ public class PongGame extends ApplicationAdapter {
 		_tableBottomCenter.add(spawnBallsLabel).padRight(padding);
 		_tableBottomCenter.add(godModeLabel).padRight(padding);
 		_tableBottomCenter.add(ballForceLabel).padRight(padding);
-		_tableBottomCenter.add(fullscreenLabel).padRight(padding);
+		if (Gdx.app.getType() == ApplicationType.Desktop) {
+			_tableBottomCenter.add(fullscreenLabel).padRight(padding);
+		}
 		_tableBottomCenter.add(drawModeLabel).padRight(padding);
 		_tableBottomCenter.add(paddleShapeLabel).padRight(padding);
 		_tableBottomCenter.add(ballShapeLabel).padRight(padding);
