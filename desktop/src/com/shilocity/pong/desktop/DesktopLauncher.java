@@ -6,8 +6,8 @@ import com.shilocity.pong.PongGame;
 
 public class DesktopLauncher {
 	public static final int VERSION_MAJOR = 0;
-	public static final int VERSION_MINOR = 1;
-	public static final int VERSION_REVISION = 1;
+	public static final int VERSION_MINOR = 2;
+	public static final int VERSION_REVISION = 0;
 	
 	public static void main (String[] arg) {
 		LwjglApplicationConfiguration config = new LwjglApplicationConfiguration();

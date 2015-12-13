@@ -23,8 +23,10 @@ import com.badlogic.gdx.physics.box2d.ContactListener;
 import com.badlogic.gdx.physics.box2d.EdgeShape;
 import com.badlogic.gdx.physics.box2d.Fixture;
 import com.badlogic.gdx.physics.box2d.FixtureDef;
+import com.badlogic.gdx.physics.box2d.JointEdge;
 import com.badlogic.gdx.physics.box2d.Manifold;
 import com.badlogic.gdx.physics.box2d.PolygonShape;
+import com.badlogic.gdx.physics.box2d.Shape;
 import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.physics.box2d.joints.MouseJoint;
 import com.badlogic.gdx.physics.box2d.joints.MouseJointDef;
@@ -42,9 +44,13 @@ public class PongGame extends ApplicationAdapter {
 	final boolean CREATE_BALL_ON_POINTER = true;
 	final boolean INFINITE_SPAWN_ON_LEFT_CLICK = true;
 	final float INFINITE_SPAWN_DELAY = 0.3f;
+	final boolean CIRCLE_PADDLE = false;
+	final boolean SQUARE_BALL = false;
 	final Vector2 DISPLAY_RESOLUTION = new Vector2(1280, 768);
 	final boolean START_FULLSCREEN = false;
 	final int FULLSCREEN_KEY_CODE = 34;
+	final int TOGGLE_PADDLE_SHAPE_KEY_CODE = 44;
+	final int TOGGLE_BALL_SHAPE_KEY_CODE = 30;
 	
 	private enum DrawStyle {
 		NORMAL,
@@ -97,6 +103,8 @@ public class PongGame extends ApplicationAdapter {
 	Timer _infiniteSpawnDelayTimer;
 	int _frameCount = 0;
 	double _totalTime = 0;
+	boolean _circlePaddle = CIRCLE_PADDLE;
+	boolean _squareBall = SQUARE_BALL;
 	
 	Label _fpsCounterLabel;
 	Label _godModeLabel;
@@ -132,6 +140,15 @@ public class PongGame extends ApplicationAdapter {
 	
 	private void toggleFullscreen() {
 		Gdx.graphics.setDisplayMode((int)DISPLAY_RESOLUTION.x, (int)DISPLAY_RESOLUTION.y, !Gdx.graphics.isFullscreen());
+	}
+	
+	private void togglePaddleShape() {
+		_circlePaddle = !_circlePaddle;
+		recreatePaddles();
+	}
+	
+	private void toggleBallShape() {
+		_squareBall = !_squareBall;
 	}
 	
 	public void resize(int width, int height) {
@@ -311,6 +328,12 @@ public class PongGame extends ApplicationAdapter {
 				if (keycode == FULLSCREEN_KEY_CODE) {
 					toggleFullscreen();
 					return true;
+				} else if (keycode == TOGGLE_PADDLE_SHAPE_KEY_CODE) {
+					togglePaddleShape();
+					return true;
+				} else if (keycode == TOGGLE_BALL_SHAPE_KEY_CODE) {
+					toggleBallShape();
+					return true;
 				}
 				return false;
 			}
@@ -349,6 +372,12 @@ public class PongGame extends ApplicationAdapter {
 		Label spawnBallsTextLabel = new Label("Spawn Balls", labelStyle);
 		Label spawnBallsLabel = new Label("Left Click / Hold, Scroll", labelStyle);
 		
+		Label paddleShapeTextLabel = new Label("Paddle Shape", labelStyle);
+		Label paddleShapeLabel = new Label(Input.Keys.toString(TOGGLE_PADDLE_SHAPE_KEY_CODE), labelStyle);
+		
+		Label ballShapeTextLabel = new Label("Ball Shape", labelStyle);
+		Label ballShapeLabel = new Label(Input.Keys.toString(TOGGLE_BALL_SHAPE_KEY_CODE), labelStyle);
+		
 		_tableLeft.top().left();
 		_tableLeft.add(fpsCounterTextLabel);
 		_tableLeft.row();
@@ -370,12 +399,16 @@ public class PongGame extends ApplicationAdapter {
 		_tableBottomCenter.add(spawnBallsTextLabel).padRight(padding);
 		_tableBottomCenter.add(godModeTextLabel).padRight(padding);
 		_tableBottomCenter.add(drawModeTextLabel).padRight(padding);
-		_tableBottomCenter.add(fullscreenTextLabel);
+		_tableBottomCenter.add(fullscreenTextLabel).padRight(padding);
+		_tableBottomCenter.add(paddleShapeTextLabel).padRight(padding);
+		_tableBottomCenter.add(ballShapeTextLabel);
 		_tableBottomCenter.row();
 		_tableBottomCenter.add(spawnBallsLabel).padRight(padding);
 		_tableBottomCenter.add(godModeLabel).padRight(padding);
 		_tableBottomCenter.add(drawModeLabel).padRight(padding);
-		_tableBottomCenter.add(fullscreenLabel);
+		_tableBottomCenter.add(fullscreenLabel).padRight(padding);
+		_tableBottomCenter.add(paddleShapeLabel).padRight(padding);
+		_tableBottomCenter.add(ballShapeLabel);
 	}
 	
 	private void updateFPSCounterLabel(double fps) {
@@ -455,6 +488,10 @@ public class PongGame extends ApplicationAdapter {
 			boolean indexIsEven = (i % 2 == 0);
 			float width = indexIsEven ? _paddleWidth[i] : _paddleThickness[i];
 			float height = indexIsEven ? _paddleThickness[i] : _paddleWidth[i];
+			if (_circlePaddle) {
+				width = Math.max(width, height);
+				height = width;
+			}
 			float x = indexIsEven ? _paddlePosition.x - width/2 : _paddlePadding[i];
 			float y = !indexIsEven ? _paddlePosition.y - height/2 : _paddlePadding[i];
 			if (i == 2) {
@@ -469,8 +506,16 @@ public class PongGame extends ApplicationAdapter {
 	        Body paddleBody = _paddleBodies[i] = _world.createBody(bodyDef);
 	        paddleBody.setUserData(CollisionType.PADDLE);
 	        
-	        PolygonShape shape = new PolygonShape();
-			shape.setAsBox(width/2, height/2);
+	        Shape shape;
+	        if (_circlePaddle) {
+	        	CircleShape circleShape = new CircleShape();
+	        	circleShape.setRadius(width/2);
+	        	shape = circleShape;
+	        } else {
+	        	PolygonShape polygonShape = new PolygonShape();
+	        	polygonShape.setAsBox(width/2, height/2);
+	        	shape = polygonShape;
+	        }
 			
 			FixtureDef fixtureDef = new FixtureDef();
 	        fixtureDef.shape = shape;
@@ -497,6 +542,29 @@ public class PongGame extends ApplicationAdapter {
 		}
 	}
 	
+	private void recreatePaddles() {
+		destroyPaddles();
+		createPaddles();
+	}
+	
+	private void destroyPaddles() {
+		for (int i=0; i<NUM_OF_PADDLES; i++) {
+			Body paddleBody = _paddleBodies[i];
+			if (paddleBody == null) continue;
+			
+			final Array<JointEdge> jointList = paddleBody.getJointList();
+		    while (jointList.size > 0) {
+		    	_world.destroyJoint(jointList.get(0).joint);
+		    }
+		    
+			_world.destroyBody(_paddleBodies[i]);
+			
+			_paddleFixtures[i] = null;
+			_paddleMouseJoints[i] = null;
+			_paddleBodies[i] = null;
+		}
+	}
+	
 	private void createBall() {
 		if (_numOfBalls >= MAX_NUM_OF_BALLS) return;
 		
@@ -518,8 +586,16 @@ public class PongGame extends ApplicationAdapter {
         ballBody.setUserData(CollisionType.BALL);
         _ballBodies.add(ballBody);
         
-        CircleShape shape = new CircleShape();
-		shape.setRadius(_ballRadius);
+        Shape shape;
+		if (_squareBall) {
+			PolygonShape polygonShape = new PolygonShape();
+        	polygonShape.setAsBox(_ballRadius, _ballRadius);
+        	shape = polygonShape;
+        } else {
+        	CircleShape circleShape = new CircleShape();
+        	circleShape.setRadius(_ballRadius);
+        	shape = circleShape;
+        }
 		
 		FixtureDef fixtureDef = new FixtureDef();
         fixtureDef.shape = shape;
@@ -610,13 +686,23 @@ public class PongGame extends ApplicationAdapter {
 	}
 	
 	private void renderBalls() {
-		for (Body body : _ballBodies) {
+		for (int i=0; i<_ballBodies.size; i++) {
+			Body body = _ballBodies.get(i);
 			Vector2 position = body.getPosition();
 			
 			if (_drawStyle == DrawStyle.NORMAL || _drawStyle == DrawStyle.NORMAL_AND_DEBUG) {
+				Fixture fixture = _ballFixtures.get(i);
+				Shape shape = fixture.getShape();
+				
 				_shapeRenderer.begin(ShapeType.Filled);
 				_shapeRenderer.setColor(0, 0, 1, 1);
-				_shapeRenderer.circle(position.x, position.y, _ballRadius);
+				if (shape instanceof CircleShape) {
+					_shapeRenderer.circle(position.x, position.y, shape.getRadius());
+				} else {
+					Vector2 size = sizeOfShape(shape);
+					float angle = body.getAngle() * MathUtils.radiansToDegrees;
+					_shapeRenderer.rect(position.x-size.x/2, position.y-size.y/2, size.x/2, size.y/2, size.x, size.y, 1.0f, 1.0f, angle);
+				}
 				_shapeRenderer.end();
 			}
 		}
@@ -626,8 +712,11 @@ public class PongGame extends ApplicationAdapter {
 	private void renderPaddles() {
 		for (int i=0; i<NUM_OF_PADDLES; i++) {
 			Body body = _paddleBodies[i];
+			if (body == null) continue;
+			
 			Fixture fixture = _paddleFixtures[i];
-			Vector2 size = sizeOfPolygonShape((PolygonShape)fixture.getShape());
+			Shape shape = fixture.getShape();
+			Vector2 size = sizeOfShape(shape);
 			Vector2 position = body.getPosition();
 			float angle = body.getAngle() * MathUtils.radiansToDegrees;
 			
@@ -641,15 +730,30 @@ public class PongGame extends ApplicationAdapter {
 			_paddleMouseJoints[i].setTarget(paddlePosition);
 			
 			if (_drawStyle == DrawStyle.NORMAL || _drawStyle == DrawStyle.NORMAL_AND_DEBUG) {
+				float x = position.x-size.x/2;
+				float y = position.y-size.y/2;
+				
 				_shapeRenderer.begin(ShapeType.Filled);
 				_shapeRenderer.setColor(1, 0, 0, 1);
-				_shapeRenderer.rect(position.x-size.x/2, position.y-size.y/2, size.x/2, size.y/2, size.x, size.y, 1.0f, 1.0f, angle);
+				
+				if (shape instanceof CircleShape) {
+					_shapeRenderer.circle(x+size.x/2, y+size.y/2, shape.getRadius());
+				} else {
+					_shapeRenderer.rect(x, y, size.x/2, size.y/2, size.x, size.y, 1.0f, 1.0f, angle);
+				}
 				_shapeRenderer.end();
 			}
 		}
 	}
 	
-	private Vector2 sizeOfPolygonShape(PolygonShape polygonShape) {
+	private Vector2 sizeOfShape(Shape shape) {
+		if (!(shape instanceof PolygonShape)) {
+			float radius = shape.getRadius();
+			return new Vector2(radius*2, radius*2);
+		}
+		
+		PolygonShape polygonShape = (PolygonShape)shape;
+		
 		Float minX = null;
         Float maxX = null;
         Float minY = null;
