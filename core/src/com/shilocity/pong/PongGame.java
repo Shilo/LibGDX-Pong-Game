@@ -5,6 +5,7 @@ import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
@@ -31,6 +32,7 @@ import com.badlogic.gdx.physics.box2d.Shape;
 import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.physics.box2d.joints.MouseJoint;
 import com.badlogic.gdx.physics.box2d.joints.MouseJointDef;
+import com.badlogic.gdx.physics.box2d.joints.PrismaticJoint;
 import com.badlogic.gdx.physics.box2d.joints.PrismaticJointDef;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
@@ -93,6 +95,7 @@ public class PongGame extends ApplicationAdapter {
     Body[] _paddleBodies = new Body[NUM_OF_PADDLES];
     Fixture[] _paddleFixtures = new Fixture[NUM_OF_PADDLES];
     MouseJoint[] _paddleMouseJoints = new MouseJoint[NUM_OF_PADDLES];
+    PrismaticJoint[] _paddleMousePrismaticJoints = new PrismaticJoint[NUM_OF_PADDLES];
 	float[] _paddleThickness = {2, 2, 2, 2};
 	float[] _paddleWidth = {10, 10, 10, 10};
 	float[] _paddlePadding = {5, 5, 5, 5};
@@ -450,7 +453,7 @@ public class PongGame extends ApplicationAdapter {
 		Label godModeLabel = new Label("Middle Click", labelStyle);
 		
 		Label ballForceTextLabel = new Label("Apply Force", labelStyle);
-		Label ballForceLabel = new Label("Right Click", labelStyle);
+		Label ballForceLabel = new Label("Right Click / Hold", labelStyle);
 		
 		Label drawModeTextLabel = new Label("Draw Mode", labelStyle);
 		Label drawModeLabel = new Label(Input.Keys.toString(DRAW_MODE_KEY_CODE), labelStyle);
@@ -613,6 +616,7 @@ public class PongGame extends ApplicationAdapter {
 	        BodyUserData bodyUserData = new BodyUserData();
 			bodyUserData.collisionType = BodyUserData.CollisionType.PADDLE;
 			//bodyUserData.fillColor = BodyUserData.randomColor();
+			bodyUserData.fillColor = Color.RED;
 			paddleBody.setUserData(bodyUserData);
 	        
 	        Shape shape;
@@ -647,7 +651,7 @@ public class PongGame extends ApplicationAdapter {
 	        PrismaticJointDef prismaticJointDef = new PrismaticJointDef();
 	        prismaticJointDef.collideConnected = false;
 	        prismaticJointDef.initialize(paddleBody, _dummyBody, paddleBody.getWorldCenter(), worldAxis);
-	        _world.createJoint(prismaticJointDef);
+	        _paddleMousePrismaticJoints[i] = (PrismaticJoint)_world.createJoint(prismaticJointDef);
 		}
 	}
 	
@@ -658,18 +662,15 @@ public class PongGame extends ApplicationAdapter {
 	
 	private void destroyPaddles() {
 		for (int i=0; i<NUM_OF_PADDLES; i++) {
-			Body paddleBody = _paddleBodies[i];
-			if (paddleBody == null) continue;
+			if (_paddleBodies[i] == null) continue;
 			
-			final Array<JointEdge> jointList = paddleBody.getJointList();
-		    while (jointList.size > 0) {
-		    	_world.destroyJoint(jointList.get(0).joint);
-		    }
-		    
+			_world.destroyJoint(_paddleMouseJoints[i]);
+			_world.destroyJoint(_paddleMousePrismaticJoints[i]);
 			_world.destroyBody(_paddleBodies[i]);
 			
 			_paddleFixtures[i] = null;
 			_paddleMouseJoints[i] = null;
+			_paddleMousePrismaticJoints[i] = null;
 			_paddleBodies[i] = null;
 		}
 	}
