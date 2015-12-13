@@ -46,11 +46,13 @@ public class PongGame extends ApplicationAdapter {
 	final float INFINITE_SPAWN_DELAY = 0.3f;
 	final boolean CIRCLE_PADDLE = false;
 	final boolean SQUARE_BALL = false;
+	final boolean SMOOTH_RANDOM_BALL_COLOR = true;
 	final Vector2 DISPLAY_RESOLUTION = new Vector2(1280, 768);
 	final boolean START_FULLSCREEN = false;
 	final int FULLSCREEN_KEY_CODE = 34;
 	final int TOGGLE_PADDLE_SHAPE_KEY_CODE = 44;
 	final int TOGGLE_BALL_SHAPE_KEY_CODE = 30;
+	final int TOGGLE_BALL_COLOR_STYLE_KEY_CODE = 31;
 	
 	private enum DrawStyle {
 		NORMAL,
@@ -97,8 +99,10 @@ public class PongGame extends ApplicationAdapter {
 	Timer _infiniteSpawnDelayTimer;
 	int _frameCount = 0;
 	double _totalTime = 0;
+	double _currentTime = 0;
 	boolean _circlePaddle = CIRCLE_PADDLE;
 	boolean _squareBall = SQUARE_BALL;
+	boolean _smoothRandomBallColor = SMOOTH_RANDOM_BALL_COLOR;
 	
 	Label _fpsCounterLabel;
 	Label _godModeLabel;
@@ -123,7 +127,16 @@ public class PongGame extends ApplicationAdapter {
 		createCollisionDetection();
 		createInputHandling();
 		
+		setupBalls();
+		
 		startGame();
+	}
+	
+	private void setupBalls() {
+		BodyUserData.setTargetAndLastIncrementColor(Utils.randomHex());
+		if (_smoothRandomBallColor) {
+			setBallRandomColor();
+		}
 	}
 	
 	private void setupDisplay() {
@@ -143,6 +156,10 @@ public class PongGame extends ApplicationAdapter {
 	
 	private void toggleBallShape() {
 		_squareBall = !_squareBall;
+	}
+	
+	private void toggleBallColorStyle() {
+		_smoothRandomBallColor = !_smoothRandomBallColor;
 	}
 	
 	public void resize(int width, int height) {
@@ -328,6 +345,9 @@ public class PongGame extends ApplicationAdapter {
 				} else if (keycode == TOGGLE_BALL_SHAPE_KEY_CODE) {
 					toggleBallShape();
 					return true;
+				} else if (keycode == TOGGLE_BALL_COLOR_STYLE_KEY_CODE) {
+					toggleBallColorStyle();
+					return true;
 				}
 				return false;
 			}
@@ -372,6 +392,9 @@ public class PongGame extends ApplicationAdapter {
 		Label ballShapeTextLabel = new Label("Ball Shape", labelStyle);
 		Label ballShapeLabel = new Label(Input.Keys.toString(TOGGLE_BALL_SHAPE_KEY_CODE), labelStyle);
 		
+		Label ballColorStyleTextLabel = new Label("Ball Color", labelStyle);
+		Label ballColorStyleLabel = new Label(Input.Keys.toString(TOGGLE_BALL_COLOR_STYLE_KEY_CODE), labelStyle);
+		
 		_tableLeft.top().left();
 		_tableLeft.add(fpsCounterTextLabel);
 		_tableLeft.row();
@@ -395,14 +418,16 @@ public class PongGame extends ApplicationAdapter {
 		_tableBottomCenter.add(drawModeTextLabel).padRight(padding);
 		_tableBottomCenter.add(fullscreenTextLabel).padRight(padding);
 		_tableBottomCenter.add(paddleShapeTextLabel).padRight(padding);
-		_tableBottomCenter.add(ballShapeTextLabel);
+		_tableBottomCenter.add(ballShapeTextLabel).padRight(padding);
+		_tableBottomCenter.add(ballColorStyleTextLabel);
 		_tableBottomCenter.row();
 		_tableBottomCenter.add(spawnBallsLabel).padRight(padding);
 		_tableBottomCenter.add(godModeLabel).padRight(padding);
 		_tableBottomCenter.add(drawModeLabel).padRight(padding);
 		_tableBottomCenter.add(fullscreenLabel).padRight(padding);
 		_tableBottomCenter.add(paddleShapeLabel).padRight(padding);
-		_tableBottomCenter.add(ballShapeLabel);
+		_tableBottomCenter.add(ballShapeLabel).padRight(padding);
+		_tableBottomCenter.add(ballColorStyleLabel);
 	}
 	
 	private void updateFPSCounterLabel(double fps) {
@@ -504,6 +529,7 @@ public class PongGame extends ApplicationAdapter {
 	        
 	        BodyUserData bodyUserData = new BodyUserData();
 			bodyUserData.collisionType = BodyUserData.CollisionType.PADDLE;
+			//bodyUserData.fillColor = BodyUserData.randomColor();
 			paddleBody.setUserData(bodyUserData);
 	        
 	        Shape shape;
@@ -586,6 +612,8 @@ public class PongGame extends ApplicationAdapter {
         
         BodyUserData bodyUserData = new BodyUserData();
 		bodyUserData.collisionType = BodyUserData.CollisionType.BALL;
+		bodyUserData.fillColor = (_smoothRandomBallColor?BodyUserData.incrementColor(_currentTime):Utils.randomColor());
+		
 		ballBody.setUserData(bodyUserData);
 		
         _ballBodies.add(ballBody);
@@ -643,10 +671,16 @@ public class PongGame extends ApplicationAdapter {
 	private void startGame() {
 		_gamePlaying = true;
 	}
+	
+	private void setBallRandomColor() {
+		float delay = 1.0f;
+		BodyUserData.setTargetIncrementColor(Utils.randomHex(), _currentTime+delay);
+	}
  
 	@Override
 	public void render() {
 		float deltaTime = Gdx.graphics.getDeltaTime();
+		_currentTime += deltaTime;
 		_totalTime += deltaTime;
 		_frameCount++;
 		
@@ -655,6 +689,9 @@ public class PongGame extends ApplicationAdapter {
 	        updateFPSCounterLabel(_frameCount/_totalTime);
 	        _frameCount = 0;
 	        _totalTime = 0;
+	        if (_smoothRandomBallColor) {
+	        	setBallRandomColor();
+	        }
 	    }
 		
 		_camera.update();
@@ -697,17 +734,27 @@ public class PongGame extends ApplicationAdapter {
 			if (_drawStyle == DrawStyle.NORMAL || _drawStyle == DrawStyle.NORMAL_AND_DEBUG) {
 				Fixture fixture = _ballFixtures.get(i);
 				Shape shape = fixture.getShape();
+				BodyUserData bodyUserData = (BodyUserData)body.getUserData();
 				
-				_shapeRenderer.begin(ShapeType.Filled);
-				_shapeRenderer.setColor(0, 0, 1, 1);
-				if (shape instanceof CircleShape) {
-					_shapeRenderer.circle(position.x, position.y, shape.getRadius());
-				} else {
-					Vector2 size = sizeOfShape(shape);
-					float angle = body.getAngle() * MathUtils.radiansToDegrees;
-					_shapeRenderer.rect(position.x-size.x/2, position.y-size.y/2, size.x/2, size.y/2, size.x, size.y, 1.0f, 1.0f, angle);
+				for (int d=0; d<2; d++) {
+					if (d==0) {
+						_shapeRenderer.begin(ShapeType.Filled);
+						_shapeRenderer.setColor(bodyUserData.fillColor);
+					} else {
+						_shapeRenderer.begin(ShapeType.Line);
+						_shapeRenderer.setColor(bodyUserData.lineColor);
+					}
+					
+					if (shape instanceof CircleShape) {
+						_shapeRenderer.circle(position.x, position.y, shape.getRadius());
+					} else {
+						Vector2 size = sizeOfShape(shape);
+						float angle = body.getAngle() * MathUtils.radiansToDegrees;
+						_shapeRenderer.rect(position.x-size.x/2, position.y-size.y/2, size.x/2, size.y/2, size.x, size.y, 1.0f, 1.0f, angle);
+					}
+					
+					_shapeRenderer.end();
 				}
-				_shapeRenderer.end();
 			}
 		}
 	}
@@ -734,18 +781,27 @@ public class PongGame extends ApplicationAdapter {
 			_paddleMouseJoints[i].setTarget(paddlePosition);
 			
 			if (_drawStyle == DrawStyle.NORMAL || _drawStyle == DrawStyle.NORMAL_AND_DEBUG) {
+				BodyUserData bodyUserData = (BodyUserData)body.getUserData();
 				float x = position.x-size.x/2;
 				float y = position.y-size.y/2;
 				
-				_shapeRenderer.begin(ShapeType.Filled);
-				_shapeRenderer.setColor(1, 0, 0, 1);
-				
-				if (shape instanceof CircleShape) {
-					_shapeRenderer.circle(x+size.x/2, y+size.y/2, shape.getRadius());
-				} else {
-					_shapeRenderer.rect(x, y, size.x/2, size.y/2, size.x, size.y, 1.0f, 1.0f, angle);
+				for (int d=0; d<2; d++) {
+					if (d==0) {
+						_shapeRenderer.begin(ShapeType.Filled);
+						_shapeRenderer.setColor(bodyUserData.fillColor);
+					} else {
+						_shapeRenderer.begin(ShapeType.Line);
+						_shapeRenderer.setColor(bodyUserData.lineColor);
+					}
+					
+					if (shape instanceof CircleShape) {
+						_shapeRenderer.circle(x+size.x/2, y+size.y/2, shape.getRadius());
+					} else {
+						_shapeRenderer.rect(x, y, size.x/2, size.y/2, size.x, size.y, 1.0f, 1.0f, angle);
+					}
+					
+					_shapeRenderer.end();
 				}
-				_shapeRenderer.end();
 			}
 		}
 	}
