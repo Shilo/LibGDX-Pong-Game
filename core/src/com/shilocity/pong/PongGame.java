@@ -25,7 +25,6 @@ import com.badlogic.gdx.physics.box2d.ContactListener;
 import com.badlogic.gdx.physics.box2d.EdgeShape;
 import com.badlogic.gdx.physics.box2d.Fixture;
 import com.badlogic.gdx.physics.box2d.FixtureDef;
-import com.badlogic.gdx.physics.box2d.JointEdge;
 import com.badlogic.gdx.physics.box2d.Manifold;
 import com.badlogic.gdx.physics.box2d.PolygonShape;
 import com.badlogic.gdx.physics.box2d.Shape;
@@ -41,14 +40,27 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Timer;
 
+import box2dLight.PointLight;
+import box2dLight.RayHandler;
+
 public class PongGame extends ApplicationAdapter {
 	final int NUM_OF_PADDLES = 4;
 	final int MAX_NUM_OF_BALLS = 9999;
+	final int LIGHT_RAYS = 200;
+	final int LIGHT_ROWS = 2;
+	final int LIGHT_COLUMNS = 3;
+	final int BALL_SMOOTH_COLOR_SECONDS = 1;
+	final int LIGHT_SMOOTH_COLOR_SECONDS = 5;
+	final float LIGHT_ALPHA = 1.0f;
 	
 	final boolean CREATE_BALL_ON_POINTER = true;
 	final boolean INFINITE_SPAWN_ON_LEFT_CLICK = true;
 	final boolean INFINITE_FORCE_ON_RIGHT_CLICK = true;
 	final boolean INVERT_FORCE = false;
+	final boolean RENDER_LIGHT = true;
+	final boolean CENTER_LIGHT = true;
+	final boolean REAL_SHADOWS = false;
+	final boolean HIDE_PADDLE = false;
 	final float INFINITE_SPAWN_DELAY = 0.3f;
 	final float INFINITE_FORCE_DELAY = 0.3f;
 	final boolean CIRCLE_PADDLE = false;
@@ -66,6 +78,10 @@ public class PongGame extends ApplicationAdapter {
 	final int TOGGLE_BALL_COLOR_STYLE_KEY_CODE = 31;
 	final int INVERT_FORCE_KEY_CODE = 50;
 	final int DRAW_MODE_KEY_CODE = 32;
+	final int RENDER_LIGHTS_KEY_CODE = 40;
+	final int REAL_SHADOWS_KEY_CODE = 47;
+	final int HIDE_PADDLE_KEY_CODE = 36;
+	final int CLEAR_BALLS_KEY_CODE = 45;
 	
 	private enum DrawStyle {
 		NORMAL,
@@ -73,10 +89,18 @@ public class PongGame extends ApplicationAdapter {
 		NORMAL_AND_DEBUG
 	}
 	
+	private enum LightStyle {
+		GRID_AND_CENTER,
+		GRID,
+		CENTER,
+		NONE
+	}
+	
 	OrthographicCamera _camera;
 	ShapeRenderer _shapeRenderer;
 	SpriteBatch _spriteBatch;
 	Box2DDebugRenderer _debugRenderer;
+	RayHandler _rayHandler;
 	private Stage _stage;
 	private Table _tableLeft;
 	private Table _tableCenter;
@@ -90,6 +114,8 @@ public class PongGame extends ApplicationAdapter {
 	int _numOfBalls = 0;
 	int _numOfHits = 0;
 	int _numOfBallsLost = 0;
+	Array<PointLight> _lights = new Array<PointLight>();
+	Array<SmoothColorManager> _lightColorManagers = new Array<SmoothColorManager>();
 	Array<Body> _ballBodies = new Array<Body>();
 	Array<Fixture> _ballFixtures = new Array<Fixture>();
     Body[] _paddleBodies = new Body[NUM_OF_PADDLES];
@@ -107,10 +133,14 @@ public class PongGame extends ApplicationAdapter {
 	Vector2 _paddlePosition;
 	boolean _gamePlaying = false;
 	DrawStyle _drawStyle = DrawStyle.NORMAL;
+	LightStyle _lightStyle = LightStyle.GRID_AND_CENTER;
 	Array<Body> _deadBalls = new Array<Body>();
 	boolean _godMode = false;
 	boolean _infiniteSpawn = false;
 	boolean _invertForce = false;
+	boolean _renderLight = RENDER_LIGHT;
+	boolean _realShadows = REAL_SHADOWS;
+	boolean _hidePaddle = HIDE_PADDLE;
 	Timer _infiniteSpawnDelayTimer;
 	boolean _infiniteForce = false;
 	Timer _infiniteForceDelayTimer;
@@ -120,6 +150,9 @@ public class PongGame extends ApplicationAdapter {
 	boolean _circlePaddle = CIRCLE_PADDLE;
 	boolean _squareBall = SQUARE_BALL;
 	boolean _smoothRandomBallColor = SMOOTH_RANDOM_BALL_COLOR;
+	SmoothColorManager _ballColorManager;
+	int _ballColorSecondsPassed = 0;
+	int _lightColorSecondsPassed = 0;
 	
 	Label _fpsCounterLabel;
 	Label _godModeLabel;
@@ -135,25 +168,78 @@ public class PongGame extends ApplicationAdapter {
 		_spriteBatch = new SpriteBatch();
 		_debugRenderer = new Box2DDebugRenderer();
 		
+		createColorManagers();
 		createCamera();
 		createWorld();
         createStage();
 		createWall();
 		createPaddles();
+		createLights();
 		createUserInterface();
 		createCollisionDetection();
 		createInputHandling();
 		
-		setupBalls();
-		
 		startGame();
 	}
 	
-	private void setupBalls() {
-		BodyUserData.setTargetAndLastIncrementColor(Utils.randomHex());
+	private void createColorManagers() {
+		_ballColorManager = new SmoothColorManager();
+		
+		_ballColorManager.setTargetAndLastIncrementColor(Utils.randomHex());
 		if (_smoothRandomBallColor) {
 			setBallRandomColor();
 		}
+		
+		
+		int lightCount = LIGHT_ROWS*LIGHT_COLUMNS;
+		if (CENTER_LIGHT) {
+			lightCount++;
+		}
+		
+		double currentTime = _currentTime;
+		
+		for (int i=0; i<lightCount; i++) {
+			SmoothColorManager lightColorManager = new SmoothColorManager();
+			lightColorManager.setTargetAndLastIncrementColor(Utils.randomHex());
+			setLightRandomColor(lightColorManager, currentTime);
+			_lightColorManagers.add(lightColorManager);
+		}
+	}
+	
+	private void createLights() {
+		float stageWidth = Gdx.graphics.getWidth() * _scaleFactor;
+		float stageHeight = Gdx.graphics.getHeight() * _scaleFactor;
+		
+		_rayHandler = new RayHandler(_world);
+		_rayHandler.setCombinedMatrix(_camera);
+		
+		float rows = LIGHT_ROWS;
+		float columns = LIGHT_COLUMNS;
+		float rowDistance = stageHeight/(rows-1);
+		float colDistance = stageWidth/(columns-1);
+		float distance = Math.min(rowDistance, colDistance);
+		
+		int i = 0;
+		for (int r=0; r<rows; r++) {
+			for (int c=0; c<columns; c++) {
+				float y = rowDistance*r;
+				float x = colDistance*c;
+				PointLight pointLight = createPointLight(i, x, y, distance);
+				_lights.add(pointLight);
+				i++;
+			}
+		}
+		
+		if (CENTER_LIGHT) {
+			PointLight pointLight = createPointLight(i, stageWidth/2, stageHeight/2, distance);
+			_lights.add(pointLight);
+		}
+	}
+	
+	private PointLight createPointLight(int index, float x, float y, float distance) {
+		SmoothColorManager lightColorManager = _lightColorManagers.get(index);
+		Color color = lightColorManager.incrementedColor(_currentTime, LIGHT_ALPHA);
+		return new PointLight(_rayHandler, LIGHT_RAYS, color, distance, x, y);
 	}
 	
 	private void setupDisplay() {
@@ -177,6 +263,15 @@ public class PongGame extends ApplicationAdapter {
 		recreatePaddles();
 	}
 	
+	private void toggleHidePaddle() {
+		_hidePaddle = !_hidePaddle;
+		if (_hidePaddle) {
+			destroyPaddles();
+		} else {
+			recreatePaddles();
+		}
+	}
+	
 	private void toggleBallShape() {
 		_squareBall = !_squareBall;
 	}
@@ -189,12 +284,72 @@ public class PongGame extends ApplicationAdapter {
 		_invertForce = !_invertForce;
 	}
 	
+	private void toggleRealShadows() {
+		_realShadows = !_realShadows;
+	}
+	
+	private void toggleLightStyle() {
+		float stageWidth = Gdx.graphics.getWidth() * _scaleFactor;
+		float stageHeight = Gdx.graphics.getHeight() * _scaleFactor;
+		float rowDistance = stageHeight/(LIGHT_ROWS-1);
+		float colDistance = stageWidth/(LIGHT_COLUMNS-1);
+		float distance = Math.min(rowDistance, colDistance);
+		float maxDistance = Math.max(stageWidth, stageHeight);
+		
+		switch (_lightStyle) {
+			case GRID_AND_CENTER:
+				_lightStyle = LightStyle.GRID;
+				break;
+			case GRID:
+				_lightStyle = LightStyle.CENTER;
+				break;
+			case CENTER:
+				_lightStyle = LightStyle.NONE;
+				break;
+			case NONE:
+				_lightStyle = LightStyle.GRID_AND_CENTER;
+		}
+		
+		int i = 0;
+		for (PointLight light : _lights) {
+			boolean last = (i == _lights.size-1);
+			float alpha = LIGHT_ALPHA;
+			if (last) {
+				if (_lightStyle == LightStyle.GRID) {
+					alpha = 0.0f;
+				}
+				if (_lightStyle == LightStyle.CENTER) {
+					light.setDistance(maxDistance);
+				} else {
+					light.setDistance(distance);
+				}
+			} else {
+				if (_lightStyle == LightStyle.CENTER) {
+					alpha = 0.0f;
+				}
+			}
+			setLightAlpha(light, alpha);
+			i++;
+		}
+	
+		_renderLight = (_lightStyle != LightStyle.NONE);
+	}
+	
+	private void setLightAlpha(PointLight light, float alpha) {
+		Color color = light.getColor();
+		light.setColor(color.r, color.g, color.b, alpha);
+	}
+	
 	public void resize(int width, int height) {
 	    _stage.getViewport().update(width, height, true);
 	}
 	
 	public void dispose() {
 	    _stage.dispose();
+	    _spriteBatch.dispose();
+	    _shapeRenderer.dispose();
+	    _debugRenderer.dispose();
+	    _rayHandler.dispose();
 	}
 
 	
@@ -398,6 +553,18 @@ public class PongGame extends ApplicationAdapter {
 				} else if (keycode == INVERT_FORCE_KEY_CODE) {
 					toggleInvertForce();
 					return true;
+				} else if (keycode == RENDER_LIGHTS_KEY_CODE) {
+					toggleLightStyle();
+					return true;
+				} else if (keycode == REAL_SHADOWS_KEY_CODE) {
+					toggleRealShadows();
+					return true;
+				} else if (keycode == HIDE_PADDLE_KEY_CODE) {
+					toggleHidePaddle();
+					return true;
+				} else if (keycode == CLEAR_BALLS_KEY_CODE) {
+					requestDestroyBalls();
+					return true;
 				}
 				return false;
 			}
@@ -425,7 +592,8 @@ public class PongGame extends ApplicationAdapter {
 	private void createUserInterface() {
 		LabelStyle labelStyle = new LabelStyle();
 		labelStyle.font = new BitmapFont();
-		float padding = 50;
+		float topPadding = 50;
+		float bottomPadding = 20;
 
 		Label fpsCounterTextLabel = new Label("FPS", labelStyle);
 		_fpsCounterLabel = new Label("...", labelStyle);
@@ -461,6 +629,9 @@ public class PongGame extends ApplicationAdapter {
 		Label spawnBallsTextLabel = new Label("Spawn Balls", labelStyle);
 		Label spawnBallsLabel = new Label("Left Click / Hold, Scroll", labelStyle);
 		
+		Label hidePaddleTextLabel = new Label("Hide Paddles", labelStyle);
+		Label hidePaddleLabel = new Label(Input.Keys.toString(HIDE_PADDLE_KEY_CODE), labelStyle);
+		
 		Label paddleShapeTextLabel = new Label("Paddle Shape", labelStyle);
 		Label paddleShapeLabel = new Label(Input.Keys.toString(TOGGLE_PADDLE_SHAPE_KEY_CODE), labelStyle);
 		
@@ -473,6 +644,15 @@ public class PongGame extends ApplicationAdapter {
 		Label invertForceTextLabel = new Label("Invert Force", labelStyle);
 		Label invertForceLabel = new Label(Input.Keys.toString(INVERT_FORCE_KEY_CODE), labelStyle);
 		
+		Label lightsTextLabel = new Label("Lights", labelStyle);
+		Label lightsLabel = new Label(Input.Keys.toString(RENDER_LIGHTS_KEY_CODE), labelStyle);
+		
+		Label realShadowsTextLabel = new Label("Shadows", labelStyle);
+		Label realShadowsLabel = new Label(Input.Keys.toString(REAL_SHADOWS_KEY_CODE), labelStyle);
+		
+		Label clearBallsTextLabel = new Label("Clear Balls", labelStyle);
+		Label clearBallsLabel = new Label(Input.Keys.toString(CLEAR_BALLS_KEY_CODE), labelStyle);
+		
 		_tableLeft.top().left();
 		_tableLeft.add(fpsCounterTextLabel);
 		_tableLeft.row();
@@ -482,38 +662,46 @@ public class PongGame extends ApplicationAdapter {
 		_tableCenter.add(_godModeLabel);
 		
 		_tableRight.top().right();
-		_tableRight.add(ballCounterTextLabel).padRight(padding);
-		_tableRight.add(lostTextLabel).padRight(padding);
+		_tableRight.add(ballCounterTextLabel).padRight(topPadding);
+		_tableRight.add(lostTextLabel).padRight(topPadding);
 		_tableRight.add(hitsTextLabel);
 		_tableRight.row();
-		_tableRight.add(_ballCounterLabel).padRight(padding);
-		_tableRight.add(_lostLabel).padRight(padding);
+		_tableRight.add(_ballCounterLabel).padRight(topPadding);
+		_tableRight.add(_lostLabel).padRight(topPadding);
 		_tableRight.add(_hitsLabel);
 		
 		_tableBottomCenter.bottom();
-		_tableBottomCenter.add(spawnBallsTextLabel).padRight(padding);
-		_tableBottomCenter.add(godModeTextLabel).padRight(padding);
-		_tableBottomCenter.add(ballForceTextLabel).padRight(padding);
+		_tableBottomCenter.add(spawnBallsTextLabel).padRight(bottomPadding);
+		_tableBottomCenter.add(godModeTextLabel).padRight(bottomPadding);
+		_tableBottomCenter.add(ballForceTextLabel).padRight(bottomPadding);
 		if (Gdx.app.getType() == ApplicationType.Desktop) {
-			_tableBottomCenter.add(fullscreenTextLabel).padRight(padding);
+			_tableBottomCenter.add(fullscreenTextLabel).padRight(bottomPadding);
 		}
-		_tableBottomCenter.add(drawModeTextLabel).padRight(padding);
-		_tableBottomCenter.add(paddleShapeTextLabel).padRight(padding);
-		_tableBottomCenter.add(ballShapeTextLabel).padRight(padding);
-		_tableBottomCenter.add(ballColorStyleTextLabel).padRight(padding);
-		_tableBottomCenter.add(invertForceTextLabel);
+		_tableBottomCenter.add(drawModeTextLabel).padRight(bottomPadding);
+		_tableBottomCenter.add(hidePaddleTextLabel).padRight(bottomPadding);
+		_tableBottomCenter.add(paddleShapeTextLabel).padRight(bottomPadding);
+		_tableBottomCenter.add(ballShapeTextLabel).padRight(bottomPadding);
+		_tableBottomCenter.add(ballColorStyleTextLabel).padRight(bottomPadding);
+		_tableBottomCenter.add(invertForceTextLabel).padRight(bottomPadding);
+		_tableBottomCenter.add(lightsTextLabel).padRight(bottomPadding);
+		_tableBottomCenter.add(realShadowsTextLabel).padRight(bottomPadding);
+		_tableBottomCenter.add(clearBallsTextLabel);
 		_tableBottomCenter.row();
-		_tableBottomCenter.add(spawnBallsLabel).padRight(padding);
-		_tableBottomCenter.add(godModeLabel).padRight(padding);
-		_tableBottomCenter.add(ballForceLabel).padRight(padding);
+		_tableBottomCenter.add(spawnBallsLabel).padRight(bottomPadding);
+		_tableBottomCenter.add(godModeLabel).padRight(bottomPadding);
+		_tableBottomCenter.add(ballForceLabel).padRight(bottomPadding);
 		if (Gdx.app.getType() == ApplicationType.Desktop) {
-			_tableBottomCenter.add(fullscreenLabel).padRight(padding);
+			_tableBottomCenter.add(fullscreenLabel).padRight(bottomPadding);
 		}
-		_tableBottomCenter.add(drawModeLabel).padRight(padding);
-		_tableBottomCenter.add(paddleShapeLabel).padRight(padding);
-		_tableBottomCenter.add(ballShapeLabel).padRight(padding);
-		_tableBottomCenter.add(ballColorStyleLabel).padRight(padding);
-		_tableBottomCenter.add(invertForceLabel);
+		_tableBottomCenter.add(drawModeLabel).padRight(bottomPadding);
+		_tableBottomCenter.add(hidePaddleLabel).padRight(bottomPadding);
+		_tableBottomCenter.add(paddleShapeLabel).padRight(bottomPadding);
+		_tableBottomCenter.add(ballShapeLabel).padRight(bottomPadding);
+		_tableBottomCenter.add(ballColorStyleLabel).padRight(bottomPadding);
+		_tableBottomCenter.add(invertForceLabel).padRight(bottomPadding);
+		_tableBottomCenter.add(lightsLabel).padRight(bottomPadding);
+		_tableBottomCenter.add(realShadowsLabel).padRight(bottomPadding);
+		_tableBottomCenter.add(clearBallsLabel);
 	}
 	
 	private void updateFPSCounterLabel(double fps) {
@@ -547,6 +735,13 @@ public class PongGame extends ApplicationAdapter {
 		}
 		return false;
 	}
+	
+	private void requestDestroyBalls() {
+		for (Body ballBody : _ballBodies) {
+			requestDestroyBall(ballBody);
+		}
+	}
+	
 	
 	private void requestDestroyBall(Body ballBody) {
 		if (_deadBalls.indexOf(ballBody, true) == -1) {
@@ -589,6 +784,8 @@ public class PongGame extends ApplicationAdapter {
 	}
 	
 	private void createPaddles() {
+		if (_hidePaddle) return;
+		
 		float viewportWidth = _camera.viewportWidth;
 		float viewportHeight = _camera.viewportHeight;
 		
@@ -717,7 +914,7 @@ public class PongGame extends ApplicationAdapter {
         
         BodyUserData bodyUserData = new BodyUserData();
 		bodyUserData.collisionType = BodyUserData.CollisionType.BALL;
-		bodyUserData.fillColor = (_smoothRandomBallColor?BodyUserData.incrementColor(_currentTime):Utils.randomColor());
+		bodyUserData.fillColor = (_smoothRandomBallColor?_ballColorManager.incrementedColor(_currentTime):Utils.randomColor());
 		
 		ballBody.setUserData(bodyUserData);
 		
@@ -778,13 +975,38 @@ public class PongGame extends ApplicationAdapter {
 	}
 	
 	private void setBallRandomColor() {
-		float delay = 1.0f;
-		BodyUserData.setTargetIncrementColor(Utils.randomHex(), _currentTime+delay);
+		float delay = BALL_SMOOTH_COLOR_SECONDS;
+		_ballColorManager.setTargetIncrementColor(Utils.randomHex(), _currentTime+delay);
 	}
- 
-	@Override
-	public void render() {
-		float deltaTime = Gdx.graphics.getDeltaTime();
+	
+	private void setLightRandomColors() {
+		double currentTime = _currentTime;
+		for (SmoothColorManager lightColorManager : _lightColorManagers) {
+			setLightRandomColor(lightColorManager, currentTime);
+		}
+	}
+	private void setLightRandomColor(SmoothColorManager lightColorManager, double currentTime) {
+		float delay = LIGHT_SMOOTH_COLOR_SECONDS;
+		lightColorManager.setTargetIncrementColor(Utils.randomHex(), currentTime+delay);
+	}
+	
+	private void updateColorManagers() {
+		if (_smoothRandomBallColor) {
+        	_ballColorSecondsPassed++;
+        	if (_ballColorSecondsPassed >= BALL_SMOOTH_COLOR_SECONDS) {
+        		_ballColorSecondsPassed = 0;
+        		setBallRandomColor();
+        	}
+        }
+        
+		_lightColorSecondsPassed++;
+        if (_lightColorSecondsPassed >= LIGHT_SMOOTH_COLOR_SECONDS) {
+        	_lightColorSecondsPassed = 0;
+        	setLightRandomColors();
+    	}
+	}
+	
+	public void update(float deltaTime) {
 		_currentTime += deltaTime;
 		_totalTime += deltaTime;
 		_frameCount++;
@@ -794,21 +1016,42 @@ public class PongGame extends ApplicationAdapter {
 	        updateFPSCounterLabel(_frameCount/_totalTime);
 	        _frameCount = 0;
 	        _totalTime = 0;
-	        if (_smoothRandomBallColor) {
-	        	setBallRandomColor();
-	        }
+	        
+	        updateColorManagers();
 	    }
 		
+		if (_infiniteSpawn) {
+			createBall();
+		}
+		if (_infiniteForce) {
+			createForce();
+		}
+		destroyDeadBalls();
+		
 		_camera.update();
+		_shapeRenderer.setProjectionMatrix(_camera.combined);
+		
 		_world.step(deltaTime, 6, 2);
+	}
+ 
+	@Override
+	public void render() {
+		float deltaTime = Gdx.graphics.getDeltaTime();
+		
+		update(deltaTime);
 
 		Gdx.gl.glClearColor(0, 0, 0, 1);
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 		
-		_shapeRenderer.setProjectionMatrix(_camera.combined);
-		
-		renderPaddles();
+		renderLightColors();
+		if (_renderLight && !_realShadows) {
+			_rayHandler.updateAndRender();
+		}
 		renderBalls();
+		renderPaddles();
+		if (_renderLight && _realShadows) {
+			_rayHandler.updateAndRender();
+		}
 		
 		if (_drawStyle == DrawStyle.DEBUG || _drawStyle == DrawStyle.NORMAL_AND_DEBUG) {
 			_spriteBatch.begin();
@@ -818,14 +1061,14 @@ public class PongGame extends ApplicationAdapter {
 		
 		_stage.act(deltaTime);
 		_stage.draw();
-		
-		destroyDeadBalls();
-		
-		if (_infiniteSpawn) {
-			createBall();
-		}
-		if (_infiniteForce) {
-			createForce();
+	}
+	
+	private void renderLightColors() {
+		int i = 0;
+		for (PointLight light : _lights) {
+			SmoothColorManager lightColorManager = _lightColorManagers.get(i);
+			light.setColor(lightColorManager.incrementedColor(_currentTime, light.getColor().a));
+			i++;
 		}
 	}
 	
